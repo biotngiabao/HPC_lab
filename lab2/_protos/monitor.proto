@@ -5,11 +5,15 @@ message CommandRequest {
     string command = 1;
 }
 
+message MetricValue {
+    string name = 1;
+    string value = 2;
+}
+
 message CommandResponse {
-    string time = 1;
+    string timestamp = 1;
     string hostname = 2;
-    string metric = 3;
-    string value = 4;
+    repeated MetricValue metrics = 3;
 }
 
 service MonitorService {

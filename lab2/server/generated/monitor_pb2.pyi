@@ -1,6 +1,8 @@
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Optional as _Optional
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -10,14 +12,20 @@ class CommandRequest(_message.Message):
     command: str
     def __init__(self, command: _Optional[str] = ...) -> None: ...
 
-class CommandResponse(_message.Message):
-    __slots__ = ("time", "hostname", "metric", "value")
-    TIME_FIELD_NUMBER: _ClassVar[int]
-    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
-    METRIC_FIELD_NUMBER: _ClassVar[int]
+class MetricValue(_message.Message):
+    __slots__ = ("name", "value")
+    NAME_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
-    time: str
-    hostname: str
-    metric: str
+    name: str
     value: str
-    def __init__(self, time: _Optional[str] = ..., hostname: _Optional[str] = ..., metric: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
+class CommandResponse(_message.Message):
+    __slots__ = ("timestamp", "hostname", "metrics")
+    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
+    timestamp: str
+    hostname: str
+    metrics: _containers.RepeatedCompositeFieldContainer[MetricValue]
+    def __init__(self, timestamp: _Optional[str] = ..., hostname: _Optional[str] = ..., metrics: _Optional[_Iterable[_Union[MetricValue, _Mapping]]] = ...) -> None: ...
