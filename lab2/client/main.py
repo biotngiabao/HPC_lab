@@ -3,83 +3,43 @@ import time
 import subprocess
 
 from generated.monitor_pb2_grpc import MonitorServiceStub
-from generated.monitor_pb2 import CommandResponse, MetricValue
+from generated.monitor_pb2 import CommandResponse
 import socket
 import datetime
-import re
+from command import get_metric_value, MetricType
 
-
-def run_cmd(cmd):
-    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    return result.stdout.strip()
-
-
-def get_cpu_usage():
-    out = run_cmd(["top", "-bn1"])
-    cpu_line = ""
-    for line in out.splitlines():
-        if "Cpu(s):" in line:
-            cpu_line = line
-            break
-
-    m = re.search(r"([\d\.]+)\s+id", cpu_line)
-    if not m:
-        return None
-    idle = float(m.group(1))
-
-    return round(100.0 - idle, 2)
-
-
-def get_mem_usage():
-    out = run_cmd(["free", "-m"])
-    for line in out.splitlines():
-        if line.startswith("Mem:"):
-            parts = line.split()
-            total = float(parts[1])
-            used = float(parts[2])
-            usage = (used / total) * 100.0
-            return round(usage, 2)
-    return None
-
-
-def get_disk_usage():
-    out = run_cmd(["df", "-h", "/"])
-    # parse the line for '/'
-    for line in out.splitlines()[1:]:
-        parts = line.split()
-        if parts[-1] == "/":
-            return float(parts[4].strip("%"))
-    return None
-
-
-def format_metric(metric, value):
-    timestamp = datetime.datetime.utcnow().isoformat() + "Z"
-    hostname = socket.gethostname()
-    return (
-        f'time="{timestamp}", hostname="{hostname}", metric="{metric}", value="{value}"'
-    )
+last_metric = MetricType.CPU
 
 
 def command_stream():
+    current_metric = MetricType.CPU
+
     while True:
         yield CommandResponse(
             timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             hostname=socket.gethostname(),
-            metrics=[
-                MetricValue(name="cpu", value=str(get_cpu_usage())),
-                MetricValue(name="memory", value=str(get_mem_usage())),
-                MetricValue(name="disk_usage", value=str(get_disk_usage())),
-            ],
+            metric=current_metric,
+            value=str(get_metric_value(current_metric)),
         )
 
         time.sleep(1)
+
+        if current_metric != last_metric:
+            current_metric = last_metric
 
 
 def main():
     channel = grpc.insecure_channel("localhost:50051")
     stub = MonitorServiceStub(channel)
-    response = stub.CommandStream(command_stream())
-    print(response)
+
+    responses = stub.CommandStream(command_stream())
+    try:
+        for response in responses:
+            print(f"Received command: {response.command}")
+            global last_metric
+            last_metric = response.command
+    except grpc.RpcError as e:
+        print(f"RPC error: {e.code()} - {e.details()}")
 
 
 if __name__ == "__main__":

@@ -37,7 +37,7 @@ class MonitorServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.CommandStream = channel.stream_unary(
+        self.CommandStream = channel.stream_stream(
             "/monitor.MonitorService/CommandStream",
             request_serializer=monitor__pb2.CommandResponse.SerializeToString,
             response_deserializer=monitor__pb2.CommandRequest.FromString,
@@ -57,7 +57,7 @@ class MonitorServiceServicer(object):
 
 def add_MonitorServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-        "CommandStream": grpc.stream_unary_rpc_method_handler(
+        "CommandStream": grpc.stream_stream_rpc_method_handler(
             servicer.CommandStream,
             request_deserializer=monitor__pb2.CommandResponse.FromString,
             response_serializer=monitor__pb2.CommandRequest.SerializeToString,
@@ -87,7 +87,7 @@ class MonitorService(object):
         timeout=None,
         metadata=None,
     ):
-        return grpc.experimental.stream_unary(
+        return grpc.experimental.stream_stream(
             request_iterator,
             target,
             "/monitor.MonitorService/CommandStream",
