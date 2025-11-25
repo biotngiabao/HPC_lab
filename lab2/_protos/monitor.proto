@@ -1,0 +1,17 @@
+syntax = "proto3";
+package monitor;
+
+message CommandRequest {
+    string command = 1;
+}
+
+message CommandResponse {
+    string time = 1;
+    string hostname = 2;
+    string metric = 3;
+    string value = 4;
+}
+
+service MonitorService {
+    rpc CommandStream (stream CommandResponse) returns ( CommandRequest);
+}

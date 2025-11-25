@@ -1,0 +1,17 @@
+gen_code_client:
+	mkdir -p ./client/generated && python -m grpc_tools.protoc -I./_protos --python_out=./client/generated --grpc_python_out=./client/generated --pyi_out=./client/generated monitor.proto
+
+gen_code_server:
+	mkdir -p ./server/generated && python -m grpc_tools.protoc -I./_protos --python_out=./server/generated --grpc_python_out=./server/generated --pyi_out=./server/generated monitor.proto
+
+gen_code:
+	make gen_code_client && make gen_code_server
+
+
+run_client:
+	cd client && python main.py
+
+run_server:
+	cd server && python main.py
+
+
