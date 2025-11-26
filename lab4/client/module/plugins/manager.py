@@ -3,27 +3,20 @@ from typing import List, Dict, Any
 from ._base import BasePlugin
 import pkgutil
 import module.plugins as plugins
+from ._cpu import CPUPlugin
+from ._ram import RAMPlugin
 
 
 class PlugingManager:
     def __init__(self):
-        self.plugins: Dict[str, BasePlugin] = {}
+        self.plugins: Dict[str, BasePlugin] = {
+            "cpu": CPUPlugin(name="cpu"),
+            "memory": RAMPlugin(name="memory"),
+        }
 
     def load_plugins(self):
-        for _, modname, _ in pkgutil.iter_modules(
-            plugins.__path__, plugins.__name__ + "."
-        ):
-            module = importlib.import_module(modname)
-            for attr in dir(module):
-                obj = getattr(module, attr)
-                if (
-                    isinstance(obj, type)
-                    and issubclass(obj, BasePlugin)
-                    and obj is not BasePlugin
-                ):
-                    plugin: BasePlugin = obj(name=modname)
-                    plugin.initialize()
-                    self.plugins[plugin.name] = plugin
+        for plugin in self.plugins.values():
+            plugin.initialize()
 
     def get_plugin(self, name: str) -> BasePlugin | None:
         if name not in self.plugins:
