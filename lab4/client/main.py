@@ -6,7 +6,13 @@ from generated.monitor_pb2_grpc import MonitorServiceStub
 from generated.monitor_pb2 import CommandResponse
 import socket
 import datetime
-from command import get_metric_value, MetricType
+from constant import MetricType
+from module.plugins.manager import PlugingManager
+from module.plugins._base import BasePlugin
+import logging
+
+plugin_manager = PlugingManager()
+plugin_manager.load_plugins()
 
 last_metric = MetricType.CPU
 
@@ -15,11 +21,21 @@ def command_stream():
     current_metric = MetricType.CPU
 
     while True:
+        plugin = plugin_manager.get_plugin(current_metric)
+
+        value = "Metric not found"
+        if plugin is not None:
+            value = plugin.run()
+            if value is None:
+                value = "Cannot get metric value"
+            else:
+                value = str(value)
+
         yield CommandResponse(
             timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             hostname=socket.gethostname(),
             metric=current_metric,
-            value=str(get_metric_value(current_metric)),
+            value=value,
         )
 
         time.sleep(1)
