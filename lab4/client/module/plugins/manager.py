@@ -5,6 +5,9 @@ import pkgutil
 import module.plugins as plugins
 from ._cpu import CPUPlugin
 from ._ram import RAMPlugin
+from ._diskio import DiskIOPlugin
+from ._network import NetworkPlugin
+from ._process_count import ProcessCountPlugin
 
 
 class PlugingManager:
@@ -12,6 +15,9 @@ class PlugingManager:
         self.plugins: Dict[str, BasePlugin] = {
             "cpu": CPUPlugin(name="cpu"),
             "memory": RAMPlugin(name="memory"),
+            "diskio": DiskIOPlugin(name="diskio"),
+            "network": NetworkPlugin(name="network"),
+            "process_count": ProcessCountPlugin(name="process_count")
         }
 
     def load_plugins(self):

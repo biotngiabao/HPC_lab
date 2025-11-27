@@ -1,4 +1,6 @@
 class MetricType:
     CPU = "cpu"
     MEMORY = "memory"
-    DISK = "disk"
+    DISKIO = "diskio"
+    NETWORK = "network"
+    PROCESS_COUNT = "process_count"

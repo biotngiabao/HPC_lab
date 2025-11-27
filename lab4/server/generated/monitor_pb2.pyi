@@ -11,13 +11,15 @@ class CommandRequest(_message.Message):
     def __init__(self, command: _Optional[str] = ...) -> None: ...
 
 class CommandResponse(_message.Message):
-    __slots__ = ("timestamp", "hostname", "metric", "value")
+    __slots__ = ("timestamp", "hostname", "metric", "value", "unit")
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     HOSTNAME_FIELD_NUMBER: _ClassVar[int]
     METRIC_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
     timestamp: str
     hostname: str
     metric: str
     value: str
-    def __init__(self, timestamp: _Optional[str] = ..., hostname: _Optional[str] = ..., metric: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    unit: str
+    def __init__(self, timestamp: _Optional[str] = ..., hostname: _Optional[str] = ..., metric: _Optional[str] = ..., value: _Optional[str] = ..., unit: _Optional[str] = ...) -> None: ...

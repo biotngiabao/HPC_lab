@@ -1,17 +1,14 @@
-import grpc
-import time
-
-
-from generated.monitor_pb2_grpc import MonitorServiceStub
-from generated.monitor_pb2 import CommandResponse
-import socket
-import datetime
-from constant import MetricType
 from module.plugins.manager import PlugingManager
-from module.grpc import GRPCClient
+from module.grpc_client import GRPCClient
+import logging
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    logging.info("Starting monitor agent...")
+
     grpc_client = GRPCClient(address="localhost:50051", plugin_manager=PlugingManager())
     grpc_client.run()
 

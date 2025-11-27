@@ -1,3 +1,16 @@
+.PHONY: client server analysis
+
+
+client:
+	cd client && python main.py
+
+server:
+	cd server && python main.py
+
+analysis:
+	cd analysis && python main.py
+
+
 gen_code_client:
 	mkdir -p ./client/generated && python -m grpc_tools.protoc -I./_protos --python_out=./client/generated --grpc_python_out=./client/generated --pyi_out=./client/generated monitor.proto
 
@@ -6,12 +19,4 @@ gen_code_server:
 
 gen_code:
 	make gen_code_client && make gen_code_server
-
-
-run_client:
-	cd client && python main.py
-
-run_server:
-	cd server && python main.py
-
 

@@ -13,6 +13,7 @@ message CommandResponse {
     string hostname = 2;
     string metric = 3;
     string value = 4;
+    string unit = 5;
 }
 
 service MonitorService {
