@@ -6,6 +6,8 @@ import grpc
 from google.protobuf.json_format import MessageToJson
 import logging
 from module.kafka_producer import KafkaProducerClient
+from module.kafka_consumer import KafkaConsumerClient
+import threading
 
 
 class MetricType:
@@ -17,12 +19,22 @@ class MetricType:
 
 
 class MonitorService(MonitorServiceServicer):
-    def __init__(self, producer: KafkaProducerClient) -> None:
+    def __init__(
+        self, producer: KafkaProducerClient, consumer: KafkaConsumerClient
+    ) -> None:
         self.logger = logging.getLogger(__name__)
         self.producer = producer
+        self.consumer = consumer
+        self.received_commands = []
+
+        t = threading.Thread(
+            target=consumer.start_consuming, args=(self.handler_command,), daemon=True
+        )
+
+        t.start()
 
     def CommandStream(self, request_iterator, context):
-        command = MetricType.CPU
+
         try:
             for request in request_iterator:
                 request: CommandResponse
@@ -38,23 +50,10 @@ class MonitorService(MonitorServiceServicer):
                     },
                 )
 
-                if request.metric == MetricType.CPU:
-                    command = MetricType.MEMORY
-                elif request.metric == MetricType.MEMORY:
-                    command = MetricType.DISKIO
-                elif request.metric == MetricType.DISKIO:
-                    command = MetricType.NETWORK
-                elif request.metric == MetricType.NETWORK:
-                    command = MetricType.PROCESS_COUNT
-                elif request.metric == MetricType.PROCESS_COUNT:
-                    command = MetricType.CPU
-
-                yield CommandRequest(command=command)
+                yield CommandRequest(commandList=self.received_commands)
 
         except grpc.RpcError as e:
-            self.logger.error(f"RPC error in CommandStream: {e.code()} - {e.details()}")
-            context.set_code(e.code())
-            context.set_details(e.details())
+            self.logger.error(f"RPC error in CommandStream: {e}")
             raise
 
         except Exception as e:
@@ -62,3 +61,7 @@ class MonitorService(MonitorServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             raise
+
+    def handler_command(self, commmands):
+        self.logger.info(f"[MonitorService] Received commands: {commmands}")
+        self.received_commands = commmands

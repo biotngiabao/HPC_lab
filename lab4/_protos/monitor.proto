@@ -3,7 +3,7 @@ package monitor;
 
 
 message CommandRequest {
-    string command = 1;
+    repeated string commandList = 1;
 }
 
 

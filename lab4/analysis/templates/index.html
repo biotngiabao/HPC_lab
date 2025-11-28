@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Realtime Monitor Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+    }
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 22px;
+    }
+    .sub {
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #9ca3af;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    select {
+      background: #020617;
+      color: #e5e7eb;
+      border-radius: 8px;
+      border: 1px solid #4b5563;
+      padding: 4px 10px;
+      font-size: 13px;
+    }
+    .charts-info {
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .chart-card {
+      background: #111827;
+      border-radius: 12px;
+      padding: 10px 12px 12px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    }
+    .chart-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .chart-sub {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+    canvas {
+      width: 100% !important;
+      height: 200px !important;
+    }
+    .muted {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    /* Command selector bar */
+    .command-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      background: #0b1120;
+      border-radius: 10px;
+      border: 1px solid #1f2937;
+    }
+    .command-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      font-size: 12px;
+    }
+    .command-list label {
+      cursor: pointer;
+    }
+    .command-list input {
+      margin-right: 4px;
+    }
+    .command-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+    .btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: none;
+      background: #2563eb;
+      color: #f9fafb;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .command-status {
+      font-size: 11px;
+      color: #9ca3af;
+      min-height: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div>
+      <h1>Realtime Monitor Dashboard</h1>
+      <div class="sub">Streaming from Kafka topic <code>monitor_metrics</code></div>
+    </div>
+    <div>
+      <label for="hostSelect" class="muted">Host: </label>
+      <select id="hostSelect"></select>
+    </div>
+  </div>
+
+  <!-- 🔻 Command selector bar -->
+  <div class="command-bar">
+    <div>
+      <div class="muted" style="margin-bottom: 4px;">Select commands (metrics):</div>
+      <div class="command-list">
+        <label><input type="checkbox" class="command-checkbox" value="cpu"> CPU</label>
+        <label><input type="checkbox" class="command-checkbox" value="memory"> RAM</label>
+        <label><input type="checkbox" class="command-checkbox" value="diskio"> Disk IO</label>
+        <label><input type="checkbox" class="command-checkbox" value="network"> Network</label>
+        <label><input type="checkbox" class="command-checkbox" value="process_count"> Process count</label>
+      </div>
+    </div>
+    <div class="command-actions">
+      <button id="sendCommandsBtn" class="btn">Send commands</button>
+      <div id="commandStatus" class="command-status"></div>
+    </div>
+  </div>
+  <!-- 🔺 Command selector bar -->
+
+  <div id="chartsInfo" class="charts-info"></div>
+  <div id="chartsContainer" class="charts-grid"></div>
+
+  <script>
+    const hostSelect = document.getElementById('hostSelect');
+    const chartsContainer = document.getElementById('chartsContainer');
+    const chartsInfo = document.getElementById('chartsInfo');
+    const sendCommandsBtn = document.getElementById('sendCommandsBtn');
+    const commandStatus = document.getElementById('commandStatus');
+
+    let selectedHost = "";
+
+    // groupName -> { chart, subElem }
+    const charts = {};
+
+    hostSelect.addEventListener('change', () => {
+      selectedHost = hostSelect.value;
+    });
+
+    function sanitizeId(name) {
+      return name.replace(/[^a-zA-Z0-9_-]/g, "_");
+    }
+
+    function createChartIfNeeded(groupName) {
+      if (charts[groupName]) {
+        return charts[groupName];
+      }
+
+      const card = document.createElement('div');
+      card.className = 'chart-card';
+
+      const title = document.createElement('div');
+      title.className = 'chart-title';
+      title.textContent = groupName;
+
+      const sub = document.createElement('div');
+      sub.className = 'chart-sub';
+      sub.textContent = "Last 15 values";  // will include unit later
+
+      const canvas = document.createElement('canvas');
+      canvas.id = "chart_" + sanitizeId(groupName);
+
+      card.appendChild(title);
+      card.appendChild(sub);
+      card.appendChild(canvas);
+      chartsContainer.appendChild(card);
+
+      const ctx = canvas.getContext('2d');
+      const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: []   // we add datasets dynamically
+        },
+        options: {
+          animation: false,
+          plugins: {
+            legend: {
+              labels: { color: '#e5e7eb', font: { size: 11 } }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                display: false  // no time labels
+              },
+              grid: { display: false }
+            },
+            y: {
+              ticks: {
+                color: '#9ca3af',
+                font: { size: 10 }
+              },
+              grid: {
+                color: 'rgba(31,41,55,0.6)'
+              }
+            }
+          }
+        }
+      });
+
+      charts[groupName] = { chart, subElem: sub };
+      return charts[groupName];
+    }
+
+    function updateChart(groupName, unit, seriesMap) {
+      const { chart, subElem } = createChartIfNeeded(groupName);
+
+      // update subtitle with unit
+      if (unit) {
+        subElem.textContent = `Last 15 values (${unit})`;
+      } else {
+        subElem.textContent = "Last 15 values";
+      }
+
+      // max length among all series
+      let maxLen = 0;
+      for (const vals of Object.values(seriesMap)) {
+        if (vals.length > maxLen) maxLen = vals.length;
+      }
+      chart.data.labels = Array(maxLen).fill(""); // no actual x labels
+
+      const datasets = chart.data.datasets;
+
+      function getDatasetIndex(label) {
+        return datasets.findIndex(d => d.label === label);
+      }
+
+      // update or create datasets
+      for (const [seriesName, vals] of Object.entries(seriesMap)) {
+        const idx = getDatasetIndex(seriesName);
+        if (idx === -1) {
+          datasets.push({
+            label: seriesName,
+            data: vals,
+            borderWidth: 2,
+            tension: 0.3
+          });
+        } else {
+          datasets[idx].data = vals;
+        }
+      }
+
+      chart.update();
+    }
+
+    async function fetchData() {
+      try {
+        const resp = await fetch('/api/metrics');
+        const data = await resp.json();
+        const hosts = data.hosts || {};
+
+        const hostNames = Object.keys(hosts);
+        
+
+        // pick / keep selected host
+        if (!selectedHost || !hostNames.includes(selectedHost)) {
+          selectedHost = hostNames[0];
+        }
+
+        // populate host dropdown
+        hostSelect.innerHTML = "";
+        for (const h of hostNames) {
+          const opt = document.createElement('option');
+          opt.value = h;
+          opt.textContent = h;
+          if (h === selectedHost) opt.selected = true;
+          hostSelect.appendChild(opt);
+        }
+
+        const hostData = hosts[selectedHost];
+        if (!hostData || !hostData.metrics) {
+          chartsInfo.textContent = "";
+          chartsContainer.innerHTML = "<div class='muted'>No metrics yet for this host.</div>";
+          return;
+        }
+
+        const metrics = hostData.metrics;
+
+        // Group by base metric (before first dot)
+        const groups = {};
+        for (const [metricName, meta] of Object.entries(metrics)) {
+          const parts = metricName.split(".");
+          const groupName = parts[0];
+          const seriesName = parts.length > 1 ? parts[1] : parts[0];
+
+          if (!groups[groupName]) {
+            groups[groupName] = {
+              unit: meta.unit || "",
+              series: {}
+            };
+          }
+          const vals = (meta.values || []).slice(-15);
+          groups[groupName].series[seriesName] = vals;
+        }
+
+        const groupNames = Object.keys(groups);
+        chartsInfo.textContent = `Host: ${selectedHost} · ${groupNames.length} chart(s)`;
+
+        // update/create charts
+        for (const gName of groupNames) {
+          const g = groups[gName];
+          updateChart(gName, g.unit, g.series);
+        }
+      } catch (err) {
+        console.error("Error fetching metrics:", err);
+      }
+    }
+
+    // 🔻 Send commands to backend
+    async function sendCommands() {
+      const checkboxes = document.querySelectorAll('.command-checkbox:checked');
+      const metrics = Array.from(checkboxes).map(cb => cb.value);
+
+      if (metrics.length === 0) {
+        commandStatus.textContent = "No commands selected";
+        return;
+      }
+
+      sendCommandsBtn.disabled = true;
+      commandStatus.textContent = "Sending...";
+
+      try {
+        const resp = await fetch('/api/send-commands', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ metrics })
+        });
+
+        const data = await resp.json();
+        if (resp.ok && data.status === "ok") {
+          commandStatus.textContent = "Sent commands: " + metrics.join(", ");
+        } else {
+          commandStatus.textContent = "Error: " + (data.message || "failed to send commands");
+        }
+      } catch (e) {
+        console.error(e);
+        commandStatus.textContent = "Network error when sending commands";
+      } finally {
+        sendCommandsBtn.disabled = false;
+      }
+    }
+
+    sendCommandsBtn.addEventListener('click', sendCommands);
+    // 🔺 Send commands to backend
+
+    setInterval(fetchData, 1000);
+    fetchData();
+  </script>
+</body>
+</html>

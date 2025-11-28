@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rmonitor.proto\x12\x07monitor\"!\n\x0e\x43ommandRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\"c\n\x0f\x43ommandResponse\x12\x11\n\ttimestamp\x18\x01 \x01(\t\x12\x10\n\x08hostname\x18\x02 \x01(\t\x12\x0e\n\x06metric\x18\x03 \x01(\t\x12\r\n\x05value\x18\x04 \x01(\t\x12\x0c\n\x04unit\x18\x05 \x01(\t2X\n\x0eMonitorService\x12\x46\n\rCommandStream\x12\x18.monitor.CommandResponse\x1a\x17.monitor.CommandRequest(\x01\x30\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rmonitor.proto\x12\x07monitor\"%\n\x0e\x43ommandRequest\x12\x13\n\x0b\x63ommandList\x18\x01 \x03(\t\"c\n\x0f\x43ommandResponse\x12\x11\n\ttimestamp\x18\x01 \x01(\t\x12\x10\n\x08hostname\x18\x02 \x01(\t\x12\x0e\n\x06metric\x18\x03 \x01(\t\x12\r\n\x05value\x18\x04 \x01(\t\x12\x0c\n\x04unit\x18\x05 \x01(\t2X\n\x0eMonitorService\x12\x46\n\rCommandStream\x12\x18.monitor.CommandResponse\x1a\x17.monitor.CommandRequest(\x01\x30\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,9 +32,9 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'monitor_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_COMMANDREQUEST']._serialized_start=26
-  _globals['_COMMANDREQUEST']._serialized_end=59
-  _globals['_COMMANDRESPONSE']._serialized_start=61
-  _globals['_COMMANDRESPONSE']._serialized_end=160
-  _globals['_MONITORSERVICE']._serialized_start=162
-  _globals['_MONITORSERVICE']._serialized_end=250
+  _globals['_COMMANDREQUEST']._serialized_end=63
+  _globals['_COMMANDRESPONSE']._serialized_start=65
+  _globals['_COMMANDRESPONSE']._serialized_end=164
+  _globals['_MONITORSERVICE']._serialized_start=166
+  _globals['_MONITORSERVICE']._serialized_end=254
 # @@protoc_insertion_point(module_scope)
