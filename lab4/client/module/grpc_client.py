@@ -58,7 +58,7 @@ class GRPCClient:
                 unit=plugin.unit if plugin else "N/A",
             )
 
-            time.sleep(0.01)
+            time.sleep(0.2)
 
             if current_metric != self.last_command:
                 current_metric = self.last_command
