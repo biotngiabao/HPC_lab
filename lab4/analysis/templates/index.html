@@ -9,7 +9,7 @@
       margin: 0;
       padding: 20px;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #020617;
+      background: radial-gradient(circle at top, #0f172a 0, #020617 55%);
       color: #e5e7eb;
     }
     h1 {
@@ -20,37 +20,108 @@
       margin-bottom: 12px;
       font-size: 13px;
       color: #9ca3af;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    code {
+      background: #020617;
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid #1f2937;
+      font-size: 11px;
+      color: #e5e7eb;
     }
     .top-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      gap: 16px;
+      margin-bottom: 16px;
     }
-    select {
-      background: #020617;
-      color: #e5e7eb;
-      border-radius: 8px;
-      border: 1px solid #4b5563;
-      padding: 4px 10px;
-      font-size: 13px;
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(22,163,74,0.15);
+      border: 1px solid rgba(34,197,94,0.7);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #bbf7d0;
     }
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 6px rgba(34,197,94,0.9);
+    }
+
     .charts-info {
       margin-bottom: 8px;
       font-size: 12px;
       color: #9ca3af;
-    }
-    .charts-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      display: flex;
+      justify-content: space-between;
       gap: 12px;
+      flex-wrap: wrap;
     }
+
+    /* container of all hosts – vertical stack */
+    #chartsContainer {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .host-section {
+      padding: 10px 12px 12px;
+      background: #020617;
+      border-radius: 12px;
+      border: 1px solid #111827;
+    }
+    .host-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+    .host-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .host-meta {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    /* per-host charts row – horizontal layout */
+    .host-charts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     .chart-card {
       background: #111827;
       border-radius: 12px;
-      padding: 10px 12px 12px;
+      padding: 8px 10px 10px;
       border: 1px solid #1f2937;
       box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      width: 260px;
+      min-width: 240px;
+      flex: 1 1 260px;
+    }
+    .chart-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+      border-color: #374151;
     }
     .chart-title {
       font-size: 13px;
@@ -64,7 +135,7 @@
     }
     canvas {
       width: 100% !important;
-      height: 200px !important;
+      height: 180px !important;
     }
     .muted {
       font-size: 12px;
@@ -82,6 +153,7 @@
       background: #0b1120;
       border-radius: 10px;
       border: 1px solid #1f2937;
+      border-left: 2px solid #1d4ed8;
     }
     .command-list {
       display: flex;
@@ -91,9 +163,13 @@
     }
     .command-list label {
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
     .command-list input {
-      margin-right: 4px;
+      margin: 0;
+      accent-color: #2563eb;
     }
     .command-actions {
       display: flex;
@@ -103,21 +179,34 @@
     }
     .btn {
       padding: 6px 14px;
-      border-radius: 6px;
+      border-radius: 999px;
       border: none;
-      background: #2563eb;
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
       color: #f9fafb;
       font-size: 12px;
       cursor: pointer;
+      font-weight: 500;
+      box-shadow: 0 8px 20px rgba(37,99,235,0.35);
+      transition: transform 0.07s ease, box-shadow 0.07s ease, opacity 0.07s ease;
+    }
+    .btn:hover:not(:disabled) {
+      box-shadow: 0 10px 24px rgba(37,99,235,0.45);
+      transform: translateY(-1px);
+    }
+    .btn:active:not(:disabled) {
+      transform: translateY(1px);
+      box-shadow: 0 4px 14px rgba(37,99,235,0.4);
     }
     .btn:disabled {
       opacity: 0.6;
       cursor: default;
+      box-shadow: none;
     }
     .command-status {
       font-size: 11px;
       color: #9ca3af;
       min-height: 14px;
+      text-align: right;
     }
   </style>
 </head>
@@ -125,15 +214,14 @@
   <div class="top-bar">
     <div>
       <h1>Realtime Monitor Dashboard</h1>
-      <div class="sub">Streaming from Kafka topic <code>monitor_metrics</code></div>
-    </div>
-    <div>
-      <label for="hostSelect" class="muted">Host: </label>
-      <select id="hostSelect"></select>
+      <div class="sub">
+        <span>Streaming from Kafka topic <code>monitor_metrics</code></span>
+        <span class="live-pill"><span class="live-dot"></span>Live</span>
+      </div>
     </div>
   </div>
 
-  <!-- 🔻 Command selector bar -->
+  <!-- Command selector bar -->
   <div class="command-bar">
     <div>
       <div class="muted" style="margin-bottom: 4px;">Select commands (metrics):</div>
@@ -150,169 +238,266 @@
       <div id="commandStatus" class="command-status"></div>
     </div>
   </div>
-  <!-- 🔺 Command selector bar -->
 
   <div id="chartsInfo" class="charts-info"></div>
-  <div id="chartsContainer" class="charts-grid"></div>
+  <div id="chartsContainer"></div>
 
   <script>
-    const hostSelect = document.getElementById('hostSelect');
-    const chartsContainer = document.getElementById('chartsContainer');
-    const chartsInfo = document.getElementById('chartsInfo');
-    const sendCommandsBtn = document.getElementById('sendCommandsBtn');
-    const commandStatus = document.getElementById('commandStatus');
+  const chartsContainer = document.getElementById('chartsContainer');
+  const chartsInfo = document.getElementById('chartsInfo');
+  const sendCommandsBtn = document.getElementById('sendCommandsBtn');
+  const commandStatus = document.getElementById('commandStatus');
 
-    let selectedHost = "";
+  // hostName -> { sectionElem, chartsRowElem, metaElem }
+  const hostSections = {};
+  // key: hostName::groupName -> { chart, subElem, cardElem }
+  const charts = {};
 
-    // groupName -> { chart, subElem }
-    const charts = {};
+  function sanitizeId(name) {
+    return name.replace(/[^a-zA-Z0-9_-]/g, "_");
+  }
 
-    hostSelect.addEventListener('change', () => {
-      selectedHost = hostSelect.value;
-    });
+  function createHostSectionIfNeeded(hostName) {
+    if (hostSections[hostName]) return hostSections[hostName];
 
-    function sanitizeId(name) {
-      return name.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const section = document.createElement('div');
+    section.className = 'host-section';
+
+    const header = document.createElement('div');
+    header.className = 'host-header';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'host-name';
+    nameEl.textContent = hostName;
+
+    const metaEl = document.createElement('div');
+    metaEl.className = 'host-meta';
+    metaEl.textContent = 'Metrics';
+
+    header.appendChild(nameEl);
+    header.appendChild(metaEl);
+
+    const chartsRow = document.createElement('div');
+    chartsRow.className = 'host-charts';
+
+    section.appendChild(header);
+    section.appendChild(chartsRow);
+    chartsContainer.appendChild(section);
+
+    hostSections[hostName] = {
+      sectionElem: section,
+      chartsRowElem: chartsRow,
+      metaElem: metaEl
+    };
+    return hostSections[hostName];
+  }
+
+  function createChartIfNeeded(hostName, groupName) {
+    const key = hostName + '::' + groupName;
+    if (charts[key]) {
+      return charts[key];
     }
 
-    function createChartIfNeeded(groupName) {
-      if (charts[groupName]) {
-        return charts[groupName];
-      }
+    const { chartsRowElem } = createHostSectionIfNeeded(hostName);
 
-      const card = document.createElement('div');
-      card.className = 'chart-card';
+    const card = document.createElement('div');
+    card.className = 'chart-card';
 
-      const title = document.createElement('div');
-      title.className = 'chart-title';
-      title.textContent = groupName;
+    const title = document.createElement('div');
+    title.className = 'chart-title';
+    title.textContent = groupName;
 
-      const sub = document.createElement('div');
-      sub.className = 'chart-sub';
-      sub.textContent = "Last 15 values";  // will include unit later
+    const sub = document.createElement('div');
+    sub.className = 'chart-sub';
+    sub.textContent = "Last 15 values";
 
-      const canvas = document.createElement('canvas');
-      canvas.id = "chart_" + sanitizeId(groupName);
+    const canvas = document.createElement('canvas');
+    canvas.id = "chart_" + sanitizeId(key);
 
-      card.appendChild(title);
-      card.appendChild(sub);
-      card.appendChild(canvas);
-      chartsContainer.appendChild(card);
+    card.appendChild(title);
+    card.appendChild(sub);
+    card.appendChild(canvas);
+    chartsRowElem.appendChild(card);
 
-      const ctx = canvas.getContext('2d');
-      const chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: [],
-          datasets: []   // we add datasets dynamically
+    const ctx = canvas.getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: []
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#e5e7eb', font: { size: 11 } }
+          }
         },
-        options: {
-          animation: false,
-          plugins: {
-            legend: {
-              labels: { color: '#e5e7eb', font: { size: 11 } }
-            }
+        scales: {
+          x: {
+            ticks: { display: false },
+            grid: { display: false }
           },
-          scales: {
-            x: {
-              ticks: {
-                display: false  // no time labels
-              },
-              grid: { display: false }
+          y: {
+            ticks: {
+              color: '#9ca3af',
+              font: { size: 10 }
             },
-            y: {
-              ticks: {
-                color: '#9ca3af',
-                font: { size: 10 }
-              },
-              grid: {
-                color: 'rgba(31,41,55,0.6)'
-              }
-            }
+            grid: { color: 'rgba(31,41,55,0.6)' }
           }
         }
-      });
+      }
+    });
 
-      charts[groupName] = { chart, subElem: sub };
-      return charts[groupName];
+    charts[key] = { chart, subElem: sub, cardElem: card };
+    return charts[key];
+  }
+
+  function hideUnusedCharts(visibleKeys) {
+    const visible = new Set(visibleKeys);
+    for (const [key, obj] of Object.entries(charts)) {
+      if (!obj.cardElem) continue;
+      obj.cardElem.style.display = visible.has(key) ? '' : 'none';
     }
 
-    function updateChart(groupName, unit, seriesMap) {
-      const { chart, subElem } = createChartIfNeeded(groupName);
+    // Hide whole host sections if none of their charts are visible
+    for (const [hostName, section] of Object.entries(hostSections)) {
+      const anyVisible = Object.keys(charts).some(k =>
+        k.startsWith(hostName + '::') && visible.has(k)
+      );
+      section.sectionElem.style.display = anyVisible ? '' : 'none';
+    }
+  }
 
-      // update subtitle with unit
-      if (unit) {
-        subElem.textContent = `Last 15 values (${unit})`;
+  // ---------- Analytics helpers ----------
+
+  function parseNum(v) {
+    const n = typeof v === "number" ? v : parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function formatNum(v) {
+    if (!Number.isFinite(v)) return "-";
+    if (Math.abs(v) >= 100) return v.toFixed(0);
+    if (Math.abs(v) >= 10) return v.toFixed(1);
+    return v.toFixed(2);
+  }
+
+  // seriesMap: { seriesName: [values...] }
+  function computeStats(seriesMap) {
+    const perSeries = {};
+    let totalLatest = 0;
+    let latestCount = 0;
+
+    for (const [name, valsRaw] of Object.entries(seriesMap)) {
+      const vals = (valsRaw || [])
+        .map(parseNum)
+        .filter(v => v !== null);
+
+      if (vals.length === 0) continue;
+
+      const latest = vals[vals.length - 1];
+      const sum = vals.reduce((a, b) => a + b, 0);
+      const avg = sum / vals.length;
+      const min = Math.min(...vals);
+      const max = Math.max(...vals);
+
+      perSeries[name] = { latest, avg, min, max };
+      totalLatest += latest;
+      latestCount++;
+    }
+
+    return { perSeries, totalLatest, latestCount };
+  }
+
+  function updateChart(hostName, groupName, unit, seriesMap) {
+    const key = hostName + '::' + groupName;
+    const { chart, subElem } = createChartIfNeeded(hostName, groupName);
+
+    // ---- analytics for this chart ----
+    const stats = computeStats(seriesMap);
+    const pieces = [];
+
+    if (unit) {
+      pieces.push(`Last 15 values (${unit})`);
+    } else {
+      pieces.push("Last 15 values");
+    }
+
+    if (stats.latestCount === 1) {
+      const [label, s] = Object.entries(stats.perSeries)[0];
+      pieces.push(`Latest ${label}: ${formatNum(s.latest)}`);
+      pieces.push(`Avg: ${formatNum(s.avg)}`);
+    } else if (stats.latestCount > 1) {
+      pieces.push(`Series: ${stats.latestCount}`);
+      pieces.push(`Total latest: ${formatNum(stats.totalLatest)}${unit || ""}`);
+    }
+
+    subElem.textContent = pieces.join(" · ");
+
+    // ---- chart data update ----
+    let maxLen = 0;
+    for (const vals of Object.values(seriesMap)) {
+      if (vals.length > maxLen) maxLen = vals.length;
+    }
+    chart.data.labels = Array(maxLen).fill("");
+
+    const datasets = chart.data.datasets;
+    function getDatasetIndex(label) {
+      return datasets.findIndex(d => d.label === label);
+    }
+
+    for (const [seriesName, valsRaw] of Object.entries(seriesMap)) {
+      const vals = valsRaw || [];
+      const idx = getDatasetIndex(seriesName);
+      if (idx === -1) {
+        datasets.push({
+          label: seriesName,
+          data: vals,
+          borderWidth: 2,
+          tension: 0.3
+        });
       } else {
-        subElem.textContent = "Last 15 values";
+        datasets[idx].data = vals;
       }
-
-      // max length among all series
-      let maxLen = 0;
-      for (const vals of Object.values(seriesMap)) {
-        if (vals.length > maxLen) maxLen = vals.length;
-      }
-      chart.data.labels = Array(maxLen).fill(""); // no actual x labels
-
-      const datasets = chart.data.datasets;
-
-      function getDatasetIndex(label) {
-        return datasets.findIndex(d => d.label === label);
-      }
-
-      // update or create datasets
-      for (const [seriesName, vals] of Object.entries(seriesMap)) {
-        const idx = getDatasetIndex(seriesName);
-        if (idx === -1) {
-          datasets.push({
-            label: seriesName,
-            data: vals,
-            borderWidth: 2,
-            tension: 0.3
-          });
-        } else {
-          datasets[idx].data = vals;
-        }
-      }
-
-      chart.update();
     }
 
-    async function fetchData() {
-      try {
-        const resp = await fetch('/api/metrics');
-        const data = await resp.json();
-        const hosts = data.hosts || {};
+    chart.update();
+    return key;
+  }
 
-        const hostNames = Object.keys(hosts);
-        
+  async function fetchData() {
+    try {
+      const resp = await fetch('/api/metrics');
+      const data = await resp.json();
+      const hosts = data.hosts || {};
+      const hostNames = Object.keys(hosts);
+      const nowStr = new Date().toLocaleTimeString();
 
-        // pick / keep selected host
-        if (!selectedHost || !hostNames.includes(selectedHost)) {
-          selectedHost = hostNames[0];
-        }
+      if (hostNames.length === 0) {
+        chartsInfo.textContent = "No hosts available · Waiting for metrics…";
+        chartsContainer.innerHTML = "<div class='muted'>No metrics yet. Agents may still be starting.</div>";
+        return;
+      }
 
-        // populate host dropdown
-        hostSelect.innerHTML = "";
-        for (const h of hostNames) {
-          const opt = document.createElement('option');
-          opt.value = h;
-          opt.textContent = h;
-          if (h === selectedHost) opt.selected = true;
-          hostSelect.appendChild(opt);
-        }
+      let totalCharts = 0;
+      const visibleKeys = [];
 
-        const hostData = hosts[selectedHost];
+      for (const hostName of hostNames) {
+        const hostData = hosts[hostName];
+        const section = createHostSectionIfNeeded(hostName);
+
         if (!hostData || !hostData.metrics) {
-          chartsInfo.textContent = "";
-          chartsContainer.innerHTML = "<div class='muted'>No metrics yet for this host.</div>";
-          return;
+          section.metaElem.textContent = "No metrics yet";
+          continue;
         }
 
         const metrics = hostData.metrics;
-
-        // Group by base metric (before first dot)
         const groups = {};
+        const groupOrder = [];
+
         for (const [metricName, meta] of Object.entries(metrics)) {
           const parts = metricName.split(".");
           const groupName = parts[0];
@@ -323,63 +508,101 @@
               unit: meta.unit || "",
               series: {}
             };
+            groupOrder.push(groupName);
           }
           const vals = (meta.values || []).slice(-15);
           groups[groupName].series[seriesName] = vals;
         }
 
-        const groupNames = Object.keys(groups);
-        chartsInfo.textContent = `Host: ${selectedHost} · ${groupNames.length} chart(s)`;
+        // host-level summary analytics (CPU + memory if present)
+        const summaryPieces = [`${groupOrder.length} chart(s)`];
 
-        // update/create charts
-        for (const gName of groupNames) {
+        if (groups["cpu"]) {
+          const cpuStats = computeStats(groups["cpu"].series);
+          if (cpuStats.latestCount > 0) {
+            const cpuUnit = groups["cpu"].unit || "";
+            let cpuVal;
+            if (cpuStats.latestCount === 1) {
+              cpuVal = Object.values(cpuStats.perSeries)[0].latest;
+            } else {
+              cpuVal = cpuStats.totalLatest;
+            }
+            summaryPieces.push(`CPU latest: ${formatNum(cpuVal)}${cpuUnit}`);
+          }
+        }
+
+        if (groups["memory"]) {
+          const memStats = computeStats(groups["memory"].series);
+          if (memStats.latestCount > 0) {
+            const memUnit = groups["memory"].unit || "";
+            let memVal;
+            if (memStats.latestCount === 1) {
+              memVal = Object.values(memStats.perSeries)[0].latest;
+            } else {
+              memVal = memStats.totalLatest;
+            }
+            summaryPieces.push(`RAM latest: ${formatNum(memVal)}${memUnit}`);
+          }
+        }
+
+        section.metaElem.textContent = summaryPieces.join(" · ");
+
+        for (const gName of groupOrder) {
           const g = groups[gName];
-          updateChart(gName, g.unit, g.series);
+          const key = updateChart(hostName, gName, g.unit, g.series);
+          visibleKeys.push(key);
+          totalCharts += 1;
         }
-      } catch (err) {
-        console.error("Error fetching metrics:", err);
       }
+
+      chartsInfo.textContent =
+        `Hosts: ${hostNames.length} · Charts: ${totalCharts} · Updated at ${nowStr}`;
+      hideUnusedCharts(visibleKeys);
+    } catch (err) {
+      console.error("Error fetching metrics:", err);
+      chartsInfo.textContent = "Error fetching metrics (see console)";
+    }
+  }
+
+  async function sendCommands() {
+    const checkboxes = document.querySelectorAll('.command-checkbox:checked');
+    const metrics = Array.from(checkboxes).map(cb => cb.value);
+
+    if (metrics.length === 0) {
+      commandStatus.textContent = "No commands selected";
+      return;
     }
 
-    // 🔻 Send commands to backend
-    async function sendCommands() {
-      const checkboxes = document.querySelectorAll('.command-checkbox:checked');
-      const metrics = Array.from(checkboxes).map(cb => cb.value);
+    sendCommandsBtn.disabled = true;
+    commandStatus.textContent = "Sending...";
 
-      if (metrics.length === 0) {
-        commandStatus.textContent = "No commands selected";
-        return;
+    try {
+      const resp = await fetch('/api/send-commands', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ metrics })
+      });
+
+      const data = await resp.json();
+      if (resp.ok && data.status === "ok") {
+        commandStatus.textContent = "Sent commands: " + metrics.join(", ");
+      } else {
+        commandStatus.textContent =
+          "Error: " + (data.message || "failed to send commands");
       }
-
-      sendCommandsBtn.disabled = true;
-      commandStatus.textContent = "Sending...";
-
-      try {
-        const resp = await fetch('/api/send-commands', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ metrics })
-        });
-
-        const data = await resp.json();
-        if (resp.ok && data.status === "ok") {
-          commandStatus.textContent = "Sent commands: " + metrics.join(", ");
-        } else {
-          commandStatus.textContent = "Error: " + (data.message || "failed to send commands");
-        }
-      } catch (e) {
-        console.error(e);
-        commandStatus.textContent = "Network error when sending commands";
-      } finally {
-        sendCommandsBtn.disabled = false;
-      }
+    } catch (e) {
+      console.error(e);
+      commandStatus.textContent = "Network error when sending commands";
+    } finally {
+      sendCommandsBtn.disabled = false;
     }
+  }
 
-    sendCommandsBtn.addEventListener('click', sendCommands);
-    // 🔺 Send commands to backend
+  sendCommandsBtn.addEventListener('click', sendCommands);
 
-    setInterval(fetchData, 1000);
-    fetchData();
-  </script>
+  setInterval(fetchData, 1000);
+  fetchData();
+</script>
+
 </body>
 </html>
