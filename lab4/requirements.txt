@@ -2,4 +2,4 @@ protobuf>=4.25.0
 grpcio>=1.60.0
 grpcio-tools>=1.60.0
 kafka-python==2.3.0
-fa
+uvicorn==0.38.0
