@@ -15,7 +15,7 @@ def on_heartbeat_event(watch_response):
         if isinstance(event, etcd3.events.PutEvent):
             print(f"[+] Node {node_id} is ALIVE.")
         elif isinstance(event, etcd3.events.DeleteEvent):
-            print(f"[-] Node {node_id} is DEAD (TTL expired).") [cite: 181]
+            print(f"[-] Node {node_id} is DEAD (TTL expired).")
 
 def update_node_config(node_name, interval, metrics):
     """Đẩy cấu hình mới xuống cho một node cụ thể [cite: 104]"""
