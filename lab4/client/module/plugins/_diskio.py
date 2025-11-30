@@ -11,9 +11,10 @@ class DiskIOPlugin(BasePlugin):
     Much faster than spawning `iostat -d 1 2` every time.
     """
     unit = "kB/s"
+    name = "diskio"
 
-    def __init__(self, name: str, device: str = "nvme0n1", sector_size: int = 512):
-        super().__init__(name)
+    def __init__(self, device: str = "nvme0n1", sector_size: int = 512):
+        super().__init__()
         self.device = device
         self.sector_size = sector_size  # bytes per sector (commonly 512)
         self._prev_read_sectors: Optional[int] = None

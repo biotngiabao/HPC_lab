@@ -3,10 +3,7 @@ from abc import ABC, abstractmethod
 
 class BasePlugin(ABC):
     unit: str = "N/A"
-
-    @abstractmethod
-    def __init__(self, name: str):
-        self.name = name
+    name: str = "base"
 
     @abstractmethod
     def initialize(self):

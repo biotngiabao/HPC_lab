@@ -29,25 +29,46 @@ class GRPCClient:
             self.logger.error(f"Error: {e}")
 
     def command_stream(self):
-        while True:
-            
-            config = self.config_manager.get_config()
-            interval = config.get("interval", 5)      
-            metrics = config.get("metrics", ["cpu"])  
+        # Biến lưu trạng thái danh sách plugin cũ để so sánh
+        last_loaded_paths = []
 
-            
+        while True:
+            # 1. Lấy cấu hình mới nhất
+            config = self.config_manager.get_config()
+            interval = config.get("interval", 5)
+            metrics = config.get("metrics", ["cpu"])
+            current_plugin_paths = config.get("plugins", [])
+
+            # 2. [QUAN TRỌNG] Kiểm tra xem danh sách plugin có đổi không
+            # Nếu đổi thì mới gọi PluginManager để load lại (tránh load thừa gây chậm)
+            if current_plugin_paths != last_loaded_paths:
+                self.logger.info(f"Plugin config changed. Reloading: {current_plugin_paths}")
+                self.plugin_manager.load_plugins(current_plugin_paths)
+                last_loaded_paths = current_plugin_paths
+
+            # 3. Chạy vòng lặp thu thập dữ liệu
             for metric_name in metrics:
                 self.logger.info(f"Processing metric: {metric_name}")
                 
+                # Tìm plugin tương ứng với metric (vd: "cpu")
                 plugin = self.plugin_manager.get_plugin(metric_name)
 
                 value = "Metric not found"
                 unit = "N/A"
                 
                 if plugin:
-                    val = plugin.run()
-                    value = str(val) if val is not None else "Error"
-                    unit = getattr(plugin, "unit", "N/A")
+                    try:
+                        val = plugin.run()
+                        if val is None:
+                             value = "None"
+                        else:
+                             value = str(val)
+                        
+                        # Lấy unit an toàn hơn
+                        unit = getattr(plugin, "unit", "N/A")
+                    except Exception as e:
+                        self.logger.error(f"Error running plugin {metric_name}: {e}")
+                        value = "Error"
 
                 yield CommandResponse(
                     timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

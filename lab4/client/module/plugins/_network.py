@@ -4,8 +4,10 @@ import time
 
 class NetworkPlugin(BasePlugin):
     unit = "kB/s"
-    def __init__(self, name: str, iface: str = "wlo1"):
-        super().__init__(name)
+    name = "network"
+    
+    def __init__(self, iface: str = "wlo1"):
+        super().__init__()
         self.iface = iface
         self.prev_rx = 0
         self.prev_tx = 0

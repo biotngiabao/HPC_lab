@@ -4,9 +4,10 @@ import subprocess
 
 class RAMPlugin(BasePlugin):
     unit = "%"
+    name = "ram"
 
-    def __init__(self, name: str):
-        super().__init__(name)
+    def __init__(self):
+        super().__init__()
 
     def initialize(self):
         pass

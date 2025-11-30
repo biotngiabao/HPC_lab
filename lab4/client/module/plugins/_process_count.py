@@ -2,8 +2,10 @@ from ._base import BasePlugin
 import subprocess
 
 class ProcessCountPlugin(BasePlugin):
-    def __init__(self, name: str):
-        super().__init__(name)
+    name = "process_count"
+
+    def __init__(self):
+        super().__init__()
 
     def run(self) -> int:
         out = self.run_cmd(["ps", "aux"])

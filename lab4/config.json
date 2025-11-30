@@ -1,0 +1,8 @@
+{
+  "interval": 5,
+  "metrics": ["cpu", "ram"],
+  "plugins": [
+    "module.plugins._cpu.CPUPlugin",
+    "module.plugins._ram.RAMPlugin"
+  ]
+}

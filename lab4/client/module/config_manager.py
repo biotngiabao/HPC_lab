@@ -2,13 +2,24 @@ import etcd3
 import json
 import threading
 import logging
+import os
 from constant import MetricType
 # Cấu hình mặc định phòng khi mất kết nối
-DEFAULT_CONFIG = {
-    "interval": 5,
-    "metrics": [MetricType.CPU, MetricType.MEMORY, MetricType.DISKIO, MetricType.NETWORK, MetricType.PROCESS_COUNT],
-    "plugins": []
-}
+def load_default_config():
+    config_path = os.path.join(os.path.dirname(__file__), '../../config.json')
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        return config
+    except Exception as e:
+        logging.error(f"Error loading default config from config.json: {e}")
+        # Fallback to hardcoded config if file missing or invalid
+        return {
+            "interval": 5,
+            "metrics": ["cpu"],
+            "plugins": ['module.plugins._cpu.CPUPlugin']
+        }
+DEFAULT_CONFIG = load_default_config()
 
 class ConfigManager:
     def __init__(self, host='localhost', port=12379, key='/monitor/config'):
@@ -20,7 +31,6 @@ class ConfigManager:
         # Load config lần đầu
         self._load_initial_config()
         
-        # Bắt đầu watch ở background
         watch_thread = threading.Thread(target=self._watch_changes, daemon=True)
         watch_thread.start()
 
@@ -37,7 +47,6 @@ class ConfigManager:
         except Exception as e:
             logging.error(f"Error loading config: {e}")
 
-    # ...existing code...
     def _watch_changes(self):
         events_iterator, cancel = self.client.watch(self.key)
         for event in events_iterator:
@@ -55,7 +64,6 @@ class ConfigManager:
                 # self.plugin_manager.reload_plugins(self.config['plugins'])
             except Exception as e:
                 logging.error(f"Error parsing config update: {e}")
-    # ...existing code...
 
     def get_config(self):
         with self.lock:

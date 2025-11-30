@@ -27,12 +27,9 @@ docker-compose up -d
 Use the etcdctl CLI to set and get config values. **Always use valid JSON (double quotes for property names and string values).**
 
 #### Set config (PowerShell example):
-```powershell
-docker exec -it lab4-etcd-1 etcdctl put /monitor/config '{"interval": 5, "metrics": ["cpu", "memory"], "plugins": []}'
-```
-Or (Linux/macOS shell):
+
 ```bash
-docker exec -it lab4-etcd-1 etcdctl put /monitor/config '{"interval": 5, "metrics": ["cpu", "memory"], "plugins": []}'
+docker exec -i lab4-etcd-1 etcdctl put /monitor/config < ./lab4/config.json
 ```
 
 #### Get config:
