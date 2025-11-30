@@ -1,0 +1,7 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: lab-
+manifests:
+  rawYaml:
+    - etcd.yaml

@@ -1,15 +1,13 @@
----
 # Distributed System Lab 3: Monitor Integration with etcd
 
 This guide outlines the steps to deploy a distributed monitoring system using etcd for configuration storage and state management (heartbeat), running on Kubernetes and Python.
 
----
 
 ## 1. Prerequisites
 - **OS:** Windows (WSL2 - Ubuntu) / Linux / macOS
-- **Kubernetes:** Docker Desktop or Minikube
+- **Kubernetes:** Docker Desktop hoặc Minikube
 - **Python:** 3.x
-- **Tools:** kubectl, pip
+- **Tools:** kubectl, pip, skaffold
 
 ---
 
@@ -23,17 +21,33 @@ lab3/
 └── README.md           # Instructions
 ```
 
----
 
 ## 3. Environment Setup
 
 ### 3.1 Deploy etcd on Kubernetes
-- Ensure the `etcd.yaml` file has the `storageClassName: local-path` line **removed or commented out** to avoid "Pending" errors on standard clusters.
+
+#### Option 1: Using kubectl (classic)
+- Make sure the `storageClassName: local-path` line in `etcd.yaml` is **removed or commented out** to avoid "Pending" errors on standard clusters.
 - Deploy etcd:
   ```sh
   kubectl apply -f etcd.yaml
   ```
 - Wait for the Pod to reach Running status:
+  ```sh
+  kubectl get pods -n etcd -w
+  ```
+
+#### Option 2: Using Skaffold (recommended for local development)
+- Make sure the `storageClassName: local-path` line in `etcd.yaml` is **removed or commented out** to avoid "Pending" errors on standard clusters.
+- Deploy etcd with skaffold:
+  ```sh
+  skaffold dev
+  ```
+  or if you want to apply only once:
+  ```sh
+  skaffold run
+  ```
+- To check Pod status:
   ```sh
   kubectl get pods -n etcd -w
   ```
@@ -58,19 +72,18 @@ Due to compatibility issues between the older etcd3 library and newer protobuf v
   pip install -r requirements.txt
   ```
 
----
 
 ## 4. Execution Guide
 The system requires **3 separate Terminal windows** to run simultaneously. Open 3 WSL/Terminal windows.
 
 ### 🖥️ Terminal 1: Port Forwarding (Bridge)
-Establishes a connection from your local machine (WSL) to the etcd Pod inside Kubernetes.
+Thiết lập kết nối từ máy local (WSL) tới Pod etcd trong Kubernetes.
 
-> venv is **not required** here
+> venv **không cần thiết** ở bước này
 ```sh
 kubectl port-forward -n etcd pod/etcd-0 2379:2379
 ```
-**Important:** Keep this terminal open. Do not close it. If you encounter "Connection refused" errors later, check if this command is still running.
+**Lưu ý:** Giữ terminal này luôn mở. Nếu gặp lỗi "Connection refused" ở các bước sau, hãy kiểm tra lại lệnh này.
 
 ### 🖥️ Terminal 2: Server Manager
 Runs the Server to monitor nodes and push configurations.
@@ -96,7 +109,6 @@ Expected output:
 [Heartbeat] Sent for ...
 ```
 
----
 
 ## 5. Demo Scenario
 Follow these steps to demonstrate that the system meets the Lab requirements:
@@ -129,11 +141,10 @@ Check Terminal 2, the Server should report:
 [-] Node <hostname> is DEAD (TTL expired)
 ```
 
----
 
-## 6. Troubleshooting
-
-### Error: `ModuleNotFoundError: No module named 'apt_pkg'`
+### Error: Pod etcd-0 stuck in Pending
+- **Cause:** Invalid `storageClassName` in the YAML file.
+- **Fix:** Remove the `storageClassName: local-path` line from `etcd.yaml`, then delete the old statefulset and re-apply (with kubectl or skaffold).
 - **Cause:** You are trying to run a system command or python without the virtual environment active, or the environment is corrupted.
 - **Fix:** Run `source venv/bin/activate` again.
 
