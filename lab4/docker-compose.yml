@@ -34,3 +34,17 @@ services:
       - "9095:8080"
     depends_on:
       - kafka
+  etcd:
+    image: quay.io/coreos/etcd:v3.6.0
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_CLUSTER=etcd=http://etcd:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_NAME=etcd
+    ports:
+      - "12379:2379"
+      - "12380:2380"

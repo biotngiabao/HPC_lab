@@ -8,6 +8,45 @@ This repository contains three main components:
 - server — a gRPC server that receives metrics and publishes them to a Kafka topic
 - analysis — a Kafka consumer that maintains recent history and serves a realtime dashboard (FastAPI + Chart.js)
 
+---
+
+## etcd Configuration (for client config management)
+
+This project uses etcd to store and manage client configuration (metrics, interval, plugins). The client loads config from etcd and watches for changes in real time.
+
+### etcd Setup (with Docker Compose)
+
+etcd is included in `docker-compose.yml` and will start automatically:
+
+```bash
+docker-compose up -d
+```
+
+### Setting and Getting Config in etcd
+
+Use the etcdctl CLI to set and get config values. **Always use valid JSON (double quotes for property names and string values).**
+
+#### Set config (PowerShell example):
+```powershell
+docker exec -it lab4-etcd-1 etcdctl put /monitor/config '{"interval": 5, "metrics": ["cpu", "memory"], "plugins": []}'
+```
+Or (Linux/macOS shell):
+```bash
+docker exec -it lab4-etcd-1 etcdctl put /monitor/config '{"interval": 5, "metrics": ["cpu", "memory"], "plugins": []}'
+```
+
+#### Get config:
+```powershell
+docker exec -it lab4-etcd-1 etcdctl get /monitor/config
+```
+
+#### Notes:
+- If you see errors about invalid JSON, check your quotes and formatting.
+- The client will fall back to a default config if etcd is unreachable or the config is missing.
+- Any config changes in etcd will be picked up by the client automatically (no restart needed).
+
+---
+
 Key details
 - gRPC server port: `50051` (insecure by default)
 - Kafka topic used: `monitor_metrics`

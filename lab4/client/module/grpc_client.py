@@ -1,23 +1,20 @@
 import grpc
 from generated.monitor_pb2_grpc import MonitorServiceStub
 from generated.monitor_pb2 import CommandRequest, CommandResponse
-from constant import MetricType
+# from constant import MetricType # Bỏ hoặc không dùng tới nữa vì dùng string từ etcd
 import datetime
 import socket
 import time
-
-from module.plugins.manager import PlugingManager
-from module.plugins._base import BasePlugin
 import logging
 
-
 class GRPCClient:
-    def __init__(self, address: str, plugin_manager: PlugingManager):
+    
+    def __init__(self, address: str, plugin_manager, config_manager):
         self.channel = grpc.insecure_channel(address)
         self.stub = MonitorServiceStub(self.channel)
-        self.received_commands = [MetricType.CPU]
-
+        
         self.plugin_manager = plugin_manager
+        self.config_manager = config_manager 
         self.plugin_manager.load_plugins()
 
         self.logger = logging.getLogger(__name__)
@@ -27,36 +24,37 @@ class GRPCClient:
         responses = self.stub.CommandStream(self.command_stream())
         try:
             for response in responses:
-                response: CommandRequest
-                self.logger.info(f"Received command: {response.commandList}")
-
-                self.received_commands = response.commandList
-        except grpc.RpcError as e:
-            self.logger.error(f"RPC error: {e.code()} - {e.details()}")
+                self.logger.info(f"Server ACK: {response.commandList}")
         except Exception as e:
             self.logger.error(f"Error: {e}")
 
     def command_stream(self):
-
         while True:
-            for command in self.received_commands:
-                self.logger.info(f"Processing command: {command}")
-                plugin = self.plugin_manager.get_plugin(command)
+            
+            config = self.config_manager.get_config()
+            interval = config.get("interval", 5)      
+            metrics = config.get("metrics", ["cpu"])  
+
+            
+            for metric_name in metrics:
+                self.logger.info(f"Processing metric: {metric_name}")
+                
+                plugin = self.plugin_manager.get_plugin(metric_name)
 
                 value = "Metric not found"
-                if plugin is not None:
-                    value = plugin.run()
-                    if value is None:
-                        value = "Cannot get metric value"
-                    else:
-                        value = str(value)
+                unit = "N/A"
+                
+                if plugin:
+                    val = plugin.run()
+                    value = str(val) if val is not None else "Error"
+                    unit = getattr(plugin, "unit", "N/A")
 
                 yield CommandResponse(
                     timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     hostname=socket.gethostname(),
-                    metric=command,
+                    metric=metric_name, 
                     value=value,
-                    unit=plugin.unit if plugin else "N/A",
+                    unit=unit,
                 )
 
-            time.sleep(1)
+            time.sleep(interval)
