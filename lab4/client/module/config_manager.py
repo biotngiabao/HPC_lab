@@ -3,7 +3,7 @@ import json
 import threading
 import logging
 import os
-from constant import MetricType
+import socket
 # Cấu hình mặc định phòng khi mất kết nối
 def load_default_config():
     config_path = os.path.join(os.path.dirname(__file__), '../../config.json')
@@ -17,7 +17,8 @@ def load_default_config():
         return {
             "interval": 5,
             "metrics": ["cpu"],
-            "plugins": ['module.plugins._cpu.CPUPlugin']
+            "plugins": ['module.plugins._cpu.CPUPlugin'],
+            "master_hostname": "LAPTOP-UMVK4LFU"
         }
 DEFAULT_CONFIG = load_default_config()
 
@@ -28,7 +29,9 @@ class ConfigManager:
         self.config = DEFAULT_CONFIG
         self.lock = threading.Lock()
         
-        # Load config lần đầu
+        self.hostname = socket.gethostname() 
+        logging.info(f"ConfigManager initialized on host: {self.hostname}")
+        
         self._load_initial_config()
         
         watch_thread = threading.Thread(target=self._watch_changes, daemon=True)
@@ -42,29 +45,41 @@ class ConfigManager:
                 logging.info(f"Loaded initial config: {self.config}")
             else:
                 logging.warning("No config found in etcd, using default.")
-                # Tự động đẩy config mặc định lên nếu chưa có
                 self.client.put(self.key, json.dumps(DEFAULT_CONFIG))
         except Exception as e:
             logging.error(f"Error loading config: {e}")
 
     def _watch_changes(self):
-        events_iterator, cancel = self.client.watch(self.key)
-        for event in events_iterator:
-            try:
-                raw_value = event.value.decode('utf-8')
-                logging.debug(f"Raw config value from etcd: {raw_value}")  # Add this line
+        try:
+            events_iterator, cancel = self.client.watch(self.key)
+            for event in events_iterator:
                 try:
-                    parsed_config = json.loads(raw_value)
-                except json.JSONDecodeError as e:
-                    logging.error(f"Invalid JSON in etcd config: {raw_value} | Error: {e}")
-                    continue  # Skip update if JSON is invalid
-                with self.lock:
-                    self.config = parsed_config
-                logging.info(f"Config updated: {self.config}")
-                # self.plugin_manager.reload_plugins(self.config['plugins'])
-            except Exception as e:
-                logging.error(f"Error parsing config update: {e}")
+                    raw_value = event.value.decode('utf-8')
+                    logging.debug(f"Raw config value from etcd: {raw_value}")
+                    try:
+                        parsed_config = json.loads(raw_value)
+                    except json.JSONDecodeError as e:
+                        logging.error(f"Invalid JSON in etcd config: {raw_value} | Error: {e}")
+                        continue
+                    
+                    with self.lock:
+                        self.config = parsed_config
+                    logging.info(f"Config updated: {self.config}")
+                    
+                except Exception as e:
+                    logging.error(f"Error parsing config update: {e}")
+        except Exception as e:
+             logging.error(f"Watch thread error (etcd connection lost?): {e}")
 
     def get_config(self):
         with self.lock:
             return self.config
+    
+    def is_master_node(self) -> bool:
+        current_config = self.get_config()
+        master_host = current_config.get("master_hostname")
+        
+        if not master_host:
+            return False
+            
+        return self.hostname == master_host

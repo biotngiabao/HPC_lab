@@ -1,6 +1,7 @@
 import grpc
 from generated.monitor_pb2_grpc import MonitorServiceStub
 from generated.monitor_pb2 import CommandRequest, CommandResponse
+
 # from constant import MetricType # Bỏ hoặc không dùng tới nữa vì dùng string từ etcd
 import datetime
 import socket
@@ -9,14 +10,16 @@ import logging
 
 class GRPCClient:
     
-    def __init__(self, address: str, plugin_manager, config_manager):
+    def __init__(self, address: str, plugin_manager, config_manager, command_sync_service) -> None:
         self.channel = grpc.insecure_channel(address)
         self.stub = MonitorServiceStub(self.channel)
-        
+
         self.plugin_manager = plugin_manager
         self.config_manager = config_manager 
+        self.command_sync_service = command_sync_service
         self.plugin_manager.load_plugins()
 
+        self.recived_commands = self.config_manager.get_config().get("metrics", [])
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"GRPCClient initialized with address: {address}")
 
@@ -24,7 +27,18 @@ class GRPCClient:
         responses = self.stub.CommandStream(self.command_stream())
         try:
             for response in responses:
-                self.logger.info(f"Server ACK: {response.commandList}")
+                response: CommandRequest
+                self.logger.info(f"Received command: {response.commandList}")
+
+                if self.config_manager.is_master_node() and response.commandList != self.recived_commands:
+                    self.recived_commands = response.commandList
+                    success = self.command_sync_service.set_commands(self.recived_commands)
+                    if success:
+                        self.logger.info(f"Updated commands to: {self.recived_commands}")
+                    else:
+                        self.logger.error("Failed to update commands to etcd.")
+        except grpc.RpcError as e:
+            self.logger.error(f"RPC error: {e.code()} - {e.details()}")
         except Exception as e:
             self.logger.error(f"Error: {e}")
 
