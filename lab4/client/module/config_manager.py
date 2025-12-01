@@ -18,18 +18,27 @@ def load_default_config():
     # Config cứng mặc định
     return {
         "interval": 5,
-        "metrics": ["cpu"],
-        "plugins": ["module.plugins.cpu.CpuPlugin"], # Sửa lại đúng đường dẫn plugin cpu của bạn
+        "metrics": ["cpu", "memory", "diskio", "network"],
+        "plugins": [
+            "module.plugins._cpu.CPUPlugin",
+            "module.plugins._ram.RAMPlugin",
+            "module.plugins._diskio.DiskIOPlugin",
+            "module.plugins._network.NetworkPlugin",
+            "module.plugins._process_count.ProcessCountPlugin"
+        ],
         "master_hostname": "LAPTOP-UMVK4LFU"
     }
 
 DEFAULT_CONFIG = load_default_config()
 
 class ConfigManager:
-    def __init__(self, host='localhost', port=12379, key='/monitor/config'):
+    def __init__(self, host=None, port=None, key='/monitor/config'):
         self.logger = logging.getLogger(__name__)
-        self.host = host
-        self.port = port
+        # Allow overriding etcd host/port via environment variables (used in k8s)
+        env_host = os.environ.get('ETCD_HOST')
+        env_port = os.environ.get('ETCD_PORT')
+        self.host = env_host if env_host else (host if host is not None else 'localhost')
+        self.port = int(env_port) if env_port else (port if port is not None else 2379)
         self.key = key
         
         # 1. Dùng biến này lưu config, KHÔNG DÙNG LOCK phức tạp nữa

@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etcd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: etcd
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      containers:
+        - name: etcd
+          image: quay.io/coreos/etcd:v3.5.7
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/local/bin/etcd
+          args:
+            - --name
+            - etcd0
+            - --data-dir
+            - /etcd-data
+            - --listen-client-urls
+            - http://0.0.0.0:2379
+            - --advertise-client-urls
+            - http://0.0.0.0:2379
+            - --listen-peer-urls
+            - http://0.0.0.0:2380
+          ports:
+            - containerPort: 2379
+            - containerPort: 2380
+          volumeMounts:
+            - name: datadir
+              mountPath: /etcd-data
+      volumes:
+        - name: datadir
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd-service
+spec:
+  selector:
+    app: etcd
+  ports:
+    - name: client
+      port: 2379
+      targetPort: 2379
+    - name: peer
+      port: 2380
+      targetPort: 2380
+  type: ClusterIP

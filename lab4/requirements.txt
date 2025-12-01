@@ -10,3 +10,4 @@ typing_extensions==4.7.1
 fastapi==0.103.1
 pydantic==2.3.0
 jinja2==3.1.2
+psutil==5.9.5

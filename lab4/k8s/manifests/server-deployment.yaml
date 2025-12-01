@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitor-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitor-server
+  template:
+    metadata:
+      labels:
+        app: monitor-server
+    spec:
+      containers:
+        - name: server
+          image: monitor-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 50051
+          env:
+            - name: KAFKA_BROKERS
+              value: "kafka:9092"
+            - name: LOG_LEVEL
+              value: "INFO"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitor-server
+spec:
+  selector:
+    app: monitor-server
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+  type: ClusterIP

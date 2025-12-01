@@ -2,6 +2,7 @@ import ast
 import logging
 from typing import Dict, Any
 from .datastore import HISTORY, UNITS
+import os
 from module.kafka_consumer import KafkaConsumerClient
 
 logger = logging.getLogger(__name__)
@@ -63,9 +64,10 @@ logger = logging.getLogger(__name__)
 
 
 def start_kafka_consumer():
+    brokers = os.environ.get("KAFKA_BROKERS", "localhost:9094")
     consumer = KafkaConsumerClient(
         topic="monitor_metrics",
-        brokers="localhost:9094",  
+        brokers=brokers,
         group_id="analysis-group",
         auto_offset_reset="earliest",
         enable_auto_commit=True,

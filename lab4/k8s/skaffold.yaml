@@ -1,0 +1,51 @@
+apiVersion: skaffold/v2beta26
+kind: Config
+metadata:
+  name: lab4
+build:
+  local:
+    push: false
+    useDockerCLI: true
+  tagPolicy:
+    envTemplate:
+      template: "{{.IMAGE_NAME}}:latest"
+  artifacts:
+    - image: lab4-base
+      context: ..
+      docker:
+        dockerfile: k8s/dockerfiles/base/Dockerfile
+    
+    - image: monitor-server
+      context: ..
+      docker:
+        dockerfile: k8s/dockerfiles/server/Dockerfile
+    - image: monitor-client
+      context: ..
+      docker:
+        dockerfile: k8s/dockerfiles/client/Dockerfile
+    - image: monitor-analysis
+      context: ..
+      docker:
+        dockerfile: k8s/dockerfiles/analysis/Dockerfile
+deploy:
+  kubectl:
+    manifests:       # Đây là tính năng không phải bug
+      - manifests/server-deployment.yaml
+      - manifests/kafka-deployment.yaml
+      - manifests/kafka-ui-deployment.yaml
+      - manifests/etcd-deployment.yaml
+      - manifests/configmap.yaml
+      - manifests/client-deployment.yaml
+      - manifests/analysis-deployment.yaml
+
+
+profiles:
+  - name: kind
+    build:
+      local:
+        push: false
+
+  - name: minikube
+    build:
+      local:
+        push: false

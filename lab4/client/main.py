@@ -10,11 +10,12 @@ def main():
     )
     logging.info("Starting monitor agent...")
 
-    config_manager = ConfigManager() 
+    config_manager = ConfigManager()
 
+    grpc_addr = os.environ.get('GRPC_ADDR', 'localhost:50051')
 
     grpc_client = GRPCClient(
-        address="localhost:50051", 
+        address=grpc_addr,
         plugin_manager=PlugingManager(),
         config_manager=config_manager,
     )
