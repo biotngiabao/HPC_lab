@@ -4,7 +4,7 @@ import subprocess
 
 class RAMPlugin(BasePlugin):
     unit = "%"
-    name = "ram"
+    name = "memory"
 
     def __init__(self):
         super().__init__()

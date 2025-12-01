@@ -4,82 +4,110 @@ import threading
 import logging
 import os
 import socket
-# Cấu hình mặc định phòng khi mất kết nối
+import time
+
+# --- Helper load default giữ nguyên ---
 def load_default_config():
     config_path = os.path.join(os.path.dirname(__file__), '../../config.json')
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-        return config
-    except Exception as e:
-        logging.error(f"Error loading default config from config.json: {e}")
-        # Fallback to hardcoded config if file missing or invalid
-        return {
-            "interval": 5,
-            "metrics": ["cpu"],
-            "plugins": ['module.plugins._cpu.CPUPlugin'],
-            "master_hostname": "LAPTOP-UMVK4LFU"
-        }
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    # Config cứng mặc định
+    return {
+        "interval": 5,
+        "metrics": ["cpu"],
+        "plugins": ["module.plugins.cpu.CpuPlugin"], # Sửa lại đúng đường dẫn plugin cpu của bạn
+        "master_hostname": "LAPTOP-UMVK4LFU"
+    }
+
 DEFAULT_CONFIG = load_default_config()
 
 class ConfigManager:
     def __init__(self, host='localhost', port=12379, key='/monitor/config'):
-        self.client = etcd3.client(host=host, port=port)
+        self.logger = logging.getLogger(__name__)
+        self.host = host
+        self.port = port
         self.key = key
-        self.config = DEFAULT_CONFIG
-        self.lock = threading.Lock()
         
-        self.hostname = socket.gethostname() 
-        logging.info(f"ConfigManager initialized on host: {self.hostname}")
+        # 1. Dùng biến này lưu config, KHÔNG DÙNG LOCK phức tạp nữa
+        # Trong Python, việc gán dict (self.config = new_dict) là atomic (an toàn thread cơ bản)
+        self.config = DEFAULT_CONFIG.copy()
         
-        self._load_initial_config()
-        
-        watch_thread = threading.Thread(target=self._watch_changes, daemon=True)
-        watch_thread.start()
+        self.hostname = socket.gethostname()
+        self.client = None
 
-    def _load_initial_config(self):
+        # 2. Không kết nối ngay tại đây để tránh treo lúc khởi động
+        # Chuyển việc kết nối và watch sang một thread riêng biệt hoàn toàn
+        self.running = True
+        self.bg_thread = threading.Thread(target=self._background_worker, daemon=True)
+        self.bg_thread.start()
+
+    def _connect(self):
         try:
-            value, meta = self.client.get(self.key)
-            if value:
-                self.config = json.loads(value.decode('utf-8'))
-                logging.info(f"Loaded initial config: {self.config}")
-            else:
-                logging.warning("No config found in etcd, using default.")
-                self.client.put(self.key, json.dumps(DEFAULT_CONFIG))
+            return etcd3.client(host=self.host, port=self.port)
         except Exception as e:
-            logging.error(f"Error loading config: {e}")
+            self.logger.error(f"Etcd connection failed: {e}")
+            return None
 
-    def _watch_changes(self):
-        try:
-            events_iterator, cancel = self.client.watch(self.key)
-            for event in events_iterator:
+    def _background_worker(self):
+        """
+        Thread này chịu trách nhiệm: 
+        1. Kết nối etcd (thử lại nếu fail)
+        2. Load config ban đầu
+        3. Watch thay đổi
+        """
+        self.logger.info("Background config worker started...")
+        
+        # Thử kết nối liên tục cho đến khi được
+        while self.running:
+            if self.client is None:
+                self.client = self._connect()
+            
+            if self.client:
                 try:
-                    raw_value = event.value.decode('utf-8')
-                    logging.debug(f"Raw config value from etcd: {raw_value}")
-                    try:
-                        parsed_config = json.loads(raw_value)
-                    except json.JSONDecodeError as e:
-                        logging.error(f"Invalid JSON in etcd config: {raw_value} | Error: {e}")
-                        continue
+                    # Load lần đầu
+                    val, meta = self.client.get(self.key)
+                    if val:
+                        self.config = json.loads(val.decode('utf-8'))
+                        self.logger.info(f"Initial config loaded: {self.config}")
                     
-                    with self.lock:
-                        self.config = parsed_config
-                    logging.info(f"Config updated: {self.config}")
-                    
+                    # Bắt đầu watch (Hàm này sẽ block thread này, không ảnh hưởng Main Thread)
+                    events, cancel = self.client.watch(self.key)
+                    for event in events:
+                        try:
+                            new_val = event.value.decode('utf-8')
+                            self.config = json.loads(new_val) # Cập nhật thẳng, không cần lock cầu kỳ
+                            self.logger.info("Config updated dynamically!")
+                        except Exception:
+                            pass
                 except Exception as e:
-                    logging.error(f"Error parsing config update: {e}")
-        except Exception as e:
-             logging.error(f"Watch thread error (etcd connection lost?): {e}")
+                    self.logger.error(f"Watch error: {e}. Reconnecting in 5s...")
+                    self.client = None # Reset để connect lại
+            
+            time.sleep(5) # Chờ 5s trước khi thử lại nếu mất kết nối
 
     def get_config(self):
-        with self.lock:
-            return self.config
-    
+        # Trả về trực tiếp, cực nhanh, không bao giờ bị block
+        return self.config
+
     def is_master_node(self) -> bool:
-        current_config = self.get_config()
-        master_host = current_config.get("master_hostname")
+        return self.hostname == self.config.get("master_hostname")
+
+    def update_active_metrics(self, new_metrics):
+        # Logic update metrics giữ nguyên, nhưng thêm check client
+        if not self.client: return False
+        if not self.is_master_node(): return False
         
-        if not master_host:
-            return False
+        new_conf = self.config.copy()
+        if set(new_conf.get("metrics", [])) == set(new_metrics):
+            return True
             
-        return self.hostname == master_host
+        new_conf["metrics"] = new_metrics
+        try:
+            self.client.put(self.key, json.dumps(new_conf))
+            return True
+        except:
+            return False

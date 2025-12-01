@@ -10,16 +10,15 @@ import logging
 
 class GRPCClient:
     
-    def __init__(self, address: str, plugin_manager, config_manager, command_sync_service) -> None:
+    def __init__(self, address: str, plugin_manager, config_manager) -> None:
         self.channel = grpc.insecure_channel(address)
         self.stub = MonitorServiceStub(self.channel)
 
         self.plugin_manager = plugin_manager
         self.config_manager = config_manager 
-        self.command_sync_service = command_sync_service
         self.plugin_manager.load_plugins()
 
-        self.recived_commands = self.config_manager.get_config().get("metrics", [])
+        self.recived_commands = []
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"GRPCClient initialized with address: {address}")
 
@@ -28,11 +27,12 @@ class GRPCClient:
         try:
             for response in responses:
                 response: CommandRequest
-                self.logger.info(f"Received command: {response.commandList}")
+                command_list = list(response.commandList)
+                self.logger.info(f"Received command: {command_list}")
 
-                if self.config_manager.is_master_node() and response.commandList != self.recived_commands:
-                    self.recived_commands = response.commandList
-                    success = self.command_sync_service.set_commands(self.recived_commands)
+                if self.config_manager.is_master_node() and command_list != self.recived_commands:
+                    self.recived_commands = command_list
+                    success = self.config_manager.update_active_metrics(self.recived_commands)
                     if success:
                         self.logger.info(f"Updated commands to: {self.recived_commands}")
                     else:
@@ -43,53 +43,68 @@ class GRPCClient:
             self.logger.error(f"Error: {e}")
 
     def command_stream(self):
-        # Biến lưu trạng thái danh sách plugin cũ để so sánh
+        """Vòng lặp chính điều phối luồng gửi dữ liệu."""
         last_loaded_paths = []
 
         while True:
-            # 1. Lấy cấu hình mới nhất
+            # 1. Lấy cấu hình snapshot
             config = self.config_manager.get_config()
             interval = config.get("interval", 5)
-            metrics = config.get("metrics", ["cpu"])
-            current_plugin_paths = config.get("plugins", [])
+            metrics = config.get("metrics", [])
+            plugin_paths = config.get("plugins", [])
 
-            # 2. [QUAN TRỌNG] Kiểm tra xem danh sách plugin có đổi không
-            # Nếu đổi thì mới gọi PluginManager để load lại (tránh load thừa gây chậm)
-            if current_plugin_paths != last_loaded_paths:
-                self.logger.info(f"Plugin config changed. Reloading: {current_plugin_paths}")
-                self.plugin_manager.load_plugins(current_plugin_paths)
-                last_loaded_paths = current_plugin_paths
+            # 2. Xử lý reload plugin nếu config thay đổi
+            last_loaded_paths = self._check_and_reload_plugins(plugin_paths, last_loaded_paths)
 
-            # 3. Chạy vòng lặp thu thập dữ liệu
-            for metric_name in metrics:
-                self.logger.info(f"Processing metric: {metric_name}")
-                
-                # Tìm plugin tương ứng với metric (vd: "cpu")
-                plugin = self.plugin_manager.get_plugin(metric_name)
+            # 3. Gửi dữ liệu (hoặc Heartbeat)
+            if metrics:
+                for metric_name in metrics:
+                    yield self._collect_metric_data(metric_name)
+            else:
+                # Nếu không có metric nào, gửi tin nhắn rỗng để giữ kết nối Server
+                yield self._create_heartbeat()
 
-                value = "Metric not found"
-                unit = "N/A"
-                
-                if plugin:
-                    try:
-                        val = plugin.run()
-                        if val is None:
-                             value = "None"
-                        else:
-                             value = str(val)
-                        
-                        # Lấy unit an toàn hơn
-                        unit = getattr(plugin, "unit", "N/A")
-                    except Exception as e:
-                        self.logger.error(f"Error running plugin {metric_name}: {e}")
-                        value = "Error"
-
-                yield CommandResponse(
-                    timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    hostname=socket.gethostname(),
-                    metric=metric_name, 
-                    value=value,
-                    unit=unit,
-                )
-
+            # 4. Ngủ theo cấu hình
             time.sleep(interval)
+
+
+    def _check_and_reload_plugins(self, current_paths, last_paths):
+        if set(current_paths) != set(last_paths):
+            self.logger.info(f"Plugin config changed. Reloading plugins...")
+            self.plugin_manager.load_plugins(current_paths)
+            return current_paths
+        return last_paths
+
+    def _collect_metric_data(self, metric_name):
+        plugin = self.plugin_manager.get_plugin(metric_name)
+        
+        value = "Metric not found"
+        unit = "N/A"
+
+        if plugin:
+            try:
+                # Chạy logic thu thập (có thể tốn thời gian/CPU)
+                raw_val = plugin.run()
+                value = str(raw_val) if raw_val is not None else "None"
+                unit = getattr(plugin, "unit", "N/A")
+            except Exception as e:
+                self.logger.error(f"Plugin error [{metric_name}]: {e}")
+                value = "Error"
+
+        return CommandResponse(
+            timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            hostname=socket.gethostname(),
+            metric=metric_name,
+            value=value,
+            unit=unit,
+        )
+
+    def _create_heartbeat(self):
+        # self.logger.debug("Sending heartbeat...")
+        return CommandResponse(
+            timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            hostname=socket.gethostname(),
+            metric="heartbeat",
+            value="alive",
+            unit=""
+        )

@@ -1,8 +1,12 @@
 {
   "interval": 5,
-  "metrics": ["cpu", "ram"],
+  "metrics": ["cpu", "memory", "diskio", "network"],
   "plugins": [
     "module.plugins._cpu.CPUPlugin",
-    "module.plugins._ram.RAMPlugin"
-  ]
+    "module.plugins._ram.RAMPlugin",
+    "module.plugins._diskio.DiskIOPlugin",
+    "module.plugins._network.NetworkPlugin",
+    "module.plugins._process_count.ProcessCountPlugin"
+  ],
+  "master_hostname": "LAPTOP-UMVK4LFU"
 }
