@@ -64,14 +64,33 @@ logger = logging.getLogger(__name__)
 
 
 def start_kafka_consumer():
+    import time
     brokers = os.environ.get("KAFKA_BROKERS", "localhost:9094")
-    consumer = KafkaConsumerClient(
-        topic="monitor_metrics",
-        brokers=brokers,
-        group_id="analysis-group",
-        auto_offset_reset="earliest",
-        enable_auto_commit=True,
-    )
+    
+    # Retry connecting to Kafka (useful when analysis starts before kafka is ready)
+    max_retries = 30
+    retry_delay = 5
+    
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Attempting to connect to Kafka at {brokers} (attempt {attempt+1}/{max_retries})")
+            consumer = KafkaConsumerClient(
+                topic="monitor_metrics",
+                brokers=brokers,
+                group_id="analysis-group",
+                auto_offset_reset="earliest",
+                enable_auto_commit=True,
+            )
+            logger.info("[Kafka] Consumer connected successfully")
+            break
+        except Exception as e:
+            logger.error(f"Failed to connect to Kafka: {e}. Retrying in {retry_delay}s...")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                logger.error("Max retries reached. Consumer thread exiting.")
+                return
+    
     try:
         consumer.start_consuming(process_message)
     except KeyboardInterrupt:
