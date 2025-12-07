@@ -25,8 +25,7 @@ def load_default_config():
             "module.plugins._diskio.DiskIOPlugin",
             "module.plugins._network.NetworkPlugin",
             "module.plugins._process_count.ProcessCountPlugin"
-        ],
-        "master_hostname": "LAPTOP-UMVK4LFU"
+        ]
     }
 
 DEFAULT_CONFIG = load_default_config()
@@ -44,6 +43,9 @@ class ConfigManager:
         # 1. Dùng biến này lưu config, KHÔNG DÙNG LOCK phức tạp nữa
         # Trong Python, việc gán dict (self.config = new_dict) là atomic (an toàn thread cơ bản)
         self.config = DEFAULT_CONFIG.copy()
+        
+        # 2. Lưu available metrics từ etcd (để validate commands)
+        self.available_metrics = self.config.get("metrics", [])
         
         self.hostname = socket.gethostname()
         self.client = None
@@ -81,6 +83,7 @@ class ConfigManager:
                     val, meta = self.client.get(self.key)
                     if val:
                         self.config = json.loads(val.decode('utf-8'))
+                        self.available_metrics = self.config.get("metrics", [])
                         self.logger.info(f"Initial config loaded: {self.config}")
                     
                     # Bắt đầu watch (Hàm này sẽ block thread này, không ảnh hưởng Main Thread)
@@ -88,8 +91,9 @@ class ConfigManager:
                     for event in events:
                         try:
                             new_val = event.value.decode('utf-8')
-                            self.config = json.loads(new_val) # Cập nhật thẳng, không cần lock cầu kỳ
-                            self.logger.info("Config updated dynamically!")
+                            new_config = json.loads(new_val)
+                            self.available_metrics = new_config.get("metrics", [])
+                            self.logger.info(f"Available metrics updated from etcd: {self.available_metrics}")
                         except Exception:
                             pass
                 except Exception as e:
@@ -102,21 +106,30 @@ class ConfigManager:
         # Trả về trực tiếp, cực nhanh, không bao giờ bị block
         return self.config
 
-    def is_master_node(self) -> bool:
-        return self.hostname == self.config.get("master_hostname")
+    def get_available_metrics(self):
+        """Lấy danh sách metrics có sẵn từ etcd"""
+        return self.available_metrics
 
-    def update_active_metrics(self, new_metrics):
-        # Logic update metrics giữ nguyên, nhưng thêm check client
-        if not self.client: return False
-        if not self.is_master_node(): return False
+    def update_local_metrics(self, new_metrics):
+        """
+        Cập nhật metrics cục bộ (không gửi lên etcd)
+        Chỉ chấp nhận metrics là tập con của available_metrics
+        """
+        # Validate: new_metrics phải là tập con của available_metrics
+        valid_metrics = [m for m in new_metrics if m in self.available_metrics]
         
-        new_conf = self.config.copy()
-        if set(new_conf.get("metrics", [])) == set(new_metrics):
-            return True
-            
-        new_conf["metrics"] = new_metrics
-        try:
-            self.client.put(self.key, json.dumps(new_conf))
-            return True
-        except:
+        if not valid_metrics:
+            self.logger.warning(f"No valid metrics in command: {new_metrics}")
             return False
+        
+        if set(valid_metrics) != set(new_metrics):
+            invalid = set(new_metrics) - set(self.available_metrics)
+            self.logger.warning(f"Some metrics are not available: {invalid}")
+        
+        # Cập nhật config nội bộ
+        new_conf = self.config.copy()
+        new_conf["metrics"] = valid_metrics
+        self.config = new_conf
+        
+        self.logger.info(f"Local metrics updated to: {valid_metrics}")
+        return True

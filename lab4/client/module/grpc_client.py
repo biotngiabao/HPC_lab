@@ -28,15 +28,22 @@ class GRPCClient:
             for response in responses:
                 response: CommandRequest
                 command_list = list(response.commandList)
-                self.logger.info(f"Received command: {command_list}")
+                self.logger.info(f"Received command from server: {command_list}")
 
-                if self.config_manager.is_master_node() and command_list != self.recived_commands:
+                # Cập nhật metrics nội bộ nếu command khác với trước đó
+                if command_list != self.recived_commands:
                     self.recived_commands = command_list
-                    success = self.config_manager.update_active_metrics(self.recived_commands)
+                    
+                    # Lấy available metrics từ etcd để validate
+                    available = self.config_manager.get_available_metrics()
+                    self.logger.info(f"Available metrics from etcd: {available}")
+                    
+                    # Cập nhật local metrics (sẽ tự động validate)
+                    success = self.config_manager.update_local_metrics(self.recived_commands)
                     if success:
-                        self.logger.info(f"Updated commands to: {self.recived_commands}")
+                        self.logger.info(f"Local metrics updated to: {self.recived_commands}")
                     else:
-                        self.logger.error("Failed to update commands to etcd.")
+                        self.logger.error("Failed to update local metrics.")
         except grpc.RpcError as e:
             self.logger.error(f"RPC error: {e.code()} - {e.details()}")
         except Exception as e:
