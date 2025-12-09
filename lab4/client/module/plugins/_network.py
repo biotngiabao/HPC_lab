@@ -8,6 +8,7 @@ class NetworkPlugin(BasePlugin):
     
     def __init__(self, iface: str = "enp0s3"):
         super().__init__()
+        print(f"NetworkPlugin initialized with iface: {iface}")
         self.iface = iface
         self.prev_rx = 0
         self.prev_tx = 0

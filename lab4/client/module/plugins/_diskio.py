@@ -15,6 +15,7 @@ class DiskIOPlugin(BasePlugin):
 
     def __init__(self, device: str = "sda", sector_size: int = 512):
         super().__init__()
+        print(f"DiskIOPlugin initialized with device: {device}")
         self.device = device
         self.sector_size = sector_size  # bytes per sector (commonly 512)
         self._prev_read_sectors: Optional[int] = None
