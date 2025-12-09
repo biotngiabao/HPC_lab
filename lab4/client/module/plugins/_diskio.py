@@ -33,7 +33,10 @@ class DiskIOPlugin(BasePlugin):
     def run(self) -> Optional[dict]:
         stats = self._read_diskstats()
         if stats is None:
-            return None
+            return {
+                "read": 0,
+                "write": 0,
+            }
 
         read_sec, write_sec = stats
         now = time.time()
@@ -47,11 +50,17 @@ class DiskIOPlugin(BasePlugin):
             self._prev_read_sectors = read_sec
             self._prev_write_sectors = write_sec
             self._prev_time = now
-            return None
+            return {
+                "read": 0,
+                "write": 0,
+            }
 
         dt = now - self._prev_time
         if dt <= 0:
-            return None
+            return {
+                "read": 0,
+                "write": 0,
+            }
 
         # Calculate deltas
         d_read = read_sec - self._prev_read_sectors
