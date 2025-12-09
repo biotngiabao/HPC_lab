@@ -48,6 +48,16 @@ class GRPCClient:
             self.logger.error(f"RPC error: {e.code()} - {e.details()}")
         except Exception as e:
             self.logger.error(f"Error: {e}")
+        finally:
+            self.close()
+    
+    def close(self):
+        """Đóng channel gRPC để giải phóng tài nguyên."""
+        try:
+            self.channel.close()
+            self.logger.info("gRPC channel closed.")
+        except Exception as e:
+            self.logger.error(f"Error closing channel: {e}")
 
     def command_stream(self):
         """Vòng lặp chính điều phối luồng gửi dữ liệu."""
