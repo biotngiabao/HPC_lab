@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: server
-          image: monitor-server:latest
-          imagePullPolicy: IfNotPresent
+          image: khoalva/monitor-server:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 50051
           env:

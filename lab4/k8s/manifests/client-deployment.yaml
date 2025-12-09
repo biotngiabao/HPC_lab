@@ -1,9 +1,8 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: monitor-client
 spec:
-  replicas: 2
   selector:
     matchLabels:
       app: monitor-client
@@ -14,8 +13,8 @@ spec:
     spec:
       containers:
         - name: client
-          image: monitor-client:latest
-          imagePullPolicy: IfNotPresent
+          image: khoalva/monitor-client:latest
+          imagePullPolicy: Always
           env:
             - name: ETCD_HOST
               value: "etcd-service"

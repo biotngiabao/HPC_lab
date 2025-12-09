@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: analysis
-          image: monitor-analysis:latest
-          imagePullPolicy: IfNotPresent
+          image: khoalva/monitor-analysis:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8003
           env:
