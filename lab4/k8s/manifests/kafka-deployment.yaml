@@ -1,9 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-config
+  namespace: kafka
+data:
+  base.properties: |
+    process.roles=broker,controller
+    controller.listener.names=CONTROLLER
+    listeners=PLAINTEXT://:9092,CONTROLLER://:9093
+    inter.broker.listener.name=PLAINTEXT
+    log.dirs=/var/lib/kafka/data
+    controller.quorum.bootstrap.servers=kafka-0.kafka-service.kafka.svc.cluster.local:9093,kafka-1.kafka-service.kafka.svc.cluster.local:9093
+    controller.quorum.voters=0@kafka-0.kafka-service.kafka.svc.cluster.local:9093,1@kafka-1.kafka-service.kafka.svc.cluster.local:9093
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-service
+  namespace: kafka
+spec:
+  ports:
+    - name: kafka
+      port: 9092
+      protocol: TCP
+      targetPort: 9092
+    - name: controller
+      port: 9093
+      protocol: TCP
+      targetPort: 9093
+  clusterIP: None  # Headless Service (Quan trọng)
+  selector:
+    app: kafka
+
+---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: kafka
+  namespace: kafka
 spec:
-  replicas: 1
+  serviceName: kafka-service
+  replicas: 2
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app: kafka
@@ -14,62 +53,35 @@ spec:
     spec:
       containers:
         - name: kafka
-          image: apache/kafka:3.9.1
-          imagePullPolicy: IfNotPresent
-          command:
-            - sh
-            - -c
+          image: apache/kafka:latest
+          command: ["/bin/bash", "-c"]
+          args:
             - |
-              # Format storage nếu chưa có
-              /opt/kafka/bin/kafka-storage.sh format -t $(cat /proc/sys/kernel/random/uuid) -c /opt/kafka/config/kraft/server.properties || true
-              # Start Kafka
-              /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/kraft/server.properties
-          env:
-            - name: KAFKA_NODE_ID
-              value: "1"
-            - name: KAFKA_PROCESS_ROLES
-              value: "broker,controller"
-            - name: KAFKA_LISTENERS
-              value: "PLAINTEXT://:9092,CONTROLLER://:9093"
-            - name: KAFKA_ADVERTISED_LISTENERS
-              value: "PLAINTEXT://kafka:9092"
-            - name: KAFKA_CONTROLLER_LISTENER_NAMES
-              value: "CONTROLLER"
-            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
-              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
-            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
-              value: "1@localhost:9093"
-            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
-              value: "1"
-            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
-              value: "1"
-            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
-              value: "1"
-            - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
-              value: "0"
+              NODE_ID=${HOSTNAME##*-}
+              CLUSTER_ID="shaGgVSiR3W05yPkn_pkgw"
+              echo "node.id=$NODE_ID" >> /opt/kafka/config/server.properties
+              echo "advertised.listeners=PLAINTEXT://kafka-$NODE_ID.kafka-service.kafka.svc.cluster.local:9092,CONTROLLER://kafka-$NODE_ID.kafka-service.kafka.svc.cluster.local:9093" >> /opt/kafka/config/server.properties
+              cat /kafka/config/base.properties >> /opt/kafka/config/server.properties
+              /opt/kafka/bin/kafka-storage.sh format -t $CLUSTER_ID -c /opt/kafka/config/server.properties
+              /opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
           ports:
             - containerPort: 9092
             - containerPort: 9093
           volumeMounts:
-            - name: kafka-data
-              mountPath: /tmp/kraft-combined-logs
+            - name: datadir
+              mountPath: /var/lib/kafka/data
+            - name: config
+              mountPath: /kafka/config
       volumes:
-        - name: kafka-data
-          emptyDir: {}
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kafka
-spec:
-  selector:
-    app: kafka
-  ports:
-    - name: plain
-      port: 9092
-      targetPort: 9092
-    - name: controller
-      port: 9093
-      targetPort: 9093
-  type: ClusterIP
+        - name: config
+          configMap:
+            name: kafka-config
+  volumeClaimTemplates:
+    - metadata:
+        name: datadir
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 1Gi

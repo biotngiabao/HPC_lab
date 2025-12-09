@@ -6,7 +6,7 @@ data:
   config.json: |
     {
       "interval": 5,
-      "metrics": ["cpu", "memory", "diskio", "network"],
+      "metrics": ["cpu", "memory", "diskio", "network", "process_count"],
       "plugins": [
         "module.plugins._cpu.CPUPlugin",
         "module.plugins._ram.RAMPlugin",
