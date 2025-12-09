@@ -24,13 +24,17 @@ def main():
     )
     
     # Read Kafka brokers from environment (set in k8s manifest) or fall back to localhost
-    kafka_brokers = os.environ.get("KAFKA_BROKERS", "localhost:9094")
+    kafka_brokers = os.environ.get("KAFKA_BROKERS", "localhost:9092")
+    logging.info(f"Using Kafka brokers: {kafka_brokers}")
 
     # Retry connecting to Kafka until brokers are available so the pod stays running
     consumer = None
     producer = None
+    retry_count = 0
     while True:
         try:
+            retry_count += 1
+            logging.info(f"Attempting to connect to Kafka (attempt #{retry_count})...")
             consumer = KafkaConsumerClient(
                 topic="commands",
                 brokers=kafka_brokers,
@@ -38,6 +42,7 @@ def main():
                 auto_offset_reset="earliest",
             )
             producer = KafkaProducerClient(broker_addr=kafka_brokers)
+            logging.info("Successfully connected to Kafka!")
             break
         except Exception as e:
             logging.error(f"Failed to connect to Kafka brokers '{kafka_brokers}': {e}. Retrying in 5s...")
