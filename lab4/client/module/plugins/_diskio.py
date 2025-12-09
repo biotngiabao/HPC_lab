@@ -13,7 +13,7 @@ class DiskIOPlugin(BasePlugin):
     unit = "kB/s"
     name = "diskio"
 
-    def __init__(self, device: str = "nvme0n1", sector_size: int = 512):
+    def __init__(self, device: str = "sda", sector_size: int = 512):
         super().__init__()
         self.device = device
         self.sector_size = sector_size  # bytes per sector (commonly 512)

@@ -6,7 +6,7 @@ class NetworkPlugin(BasePlugin):
     unit = "kB/s"
     name = "network"
     
-    def __init__(self, iface: str = "wlo1"):
+    def __init__(self, iface: str = "enp0s3"):
         super().__init__()
         self.iface = iface
         self.prev_rx = 0
