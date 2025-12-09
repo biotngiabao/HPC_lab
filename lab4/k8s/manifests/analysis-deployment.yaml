@@ -20,7 +20,7 @@ spec:
             - containerPort: 8003
           env:
             - name: KAFKA_BROKERS
-              value: "kafka:9092"
+              value: "kafka-service.kafka.svc.cluster.local:9092"
 
 ---
 apiVersion: v1

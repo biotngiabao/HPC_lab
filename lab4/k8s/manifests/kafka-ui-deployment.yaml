@@ -24,9 +24,9 @@ spec:
               value: "true"
             - name: KAFKA_CLUSTERS_0_NAME
               value: "local"
-            # QUAN TRỌNG: Thay 'kafka:9092' bằng đúng tên service kafka của bạn
+            # QUAN TRỌNG: Thay 'kafka-service.kafka.svc.cluster.local:9092' bằng đúng tên service kafka của bạn
             - name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS
-              value: "kafka:9092"
+              value: "kafka-service.kafka.svc.cluster.local:9092"
           # Thêm healthcheck để K8s biết khi nào container sẵn sàng
           livenessProbe:
             httpGet:
